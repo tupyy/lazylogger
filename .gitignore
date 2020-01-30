@@ -1,0 +1,9 @@
+*#
+.#*
+*.swp
+*.swo
+
+pkg/
+tags
+bin/
+*.json
