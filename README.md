@@ -1,38 +1,41 @@
-# OpenWis Logger
+# LazyLogger 
 
-
-OpenWis Logger can log any file from remote hosts. It reacts to changes in size for growning logs like Apache, Tomcat or JBoss.
+Lazylogger is a small app to watch logs from different hosts in one place. Using the TUI, it is very easy to switch between log files.
+You can even split, horizontaly or verticaly, the current window and add more logs on the same page.
 
 ## Configuration
 
-The configuration is based on a JSON file with the following structure:
+The configuration is based on a YAML file with the following structure:
 
-```json
-{
-    "defaultchunksize": 4096,
-    "services": [
-            {
-                "host" : "192.168.3.100:22",
-                "username" :"cosmin",
-                "password": "cosmin",
-                "file": "/home/cosmin/apache-tomcat-8.5.46/logs/catalina.out"
-            },
-            {
-                "host" : "192.168.3.100:22",
-                "username" :"cosmin",
-                "password": "cosmin",
-                "file": "/home/cosmin/catalina.out"
-            }
-    ]
-}
+```yaml
+defaultChunkSize: 40096
+services:
+    - 
+        name: admin-local 
+        host:
+            address: 192.168.1.1
+            username: foo 
+            password: bar 
+        file: /home/foo/file-to-watch.log 
+    - 
+        name: tomcat 
+        jumpHost:
+            address: aws-jump-host-address 
+            username: ec2-user
+            key: /home/foo/.aws/key.pem
+        host:
+            address: 172.1.1.1
+            username: ec2-user
+            key: /home/foo/.aws/key.pem
+        file: /home/ec2-user/apache-tomcat-9.0.30/logs/catalina.out 
 ```
-Each entry in `services` describe a configure a logger. 
+Each entry in `services` represent a log service. You can use password or key to connect to ssh. 
+For cases when a jump host is required (e.g. `aws`), you can add a `jumpHost` with the same structre as `host`.
+Lazylogger will create a ssh tunnel to connect to `host` thought `jumpHost`. 
 
 To use a configuration file, the following command must be executed:
 
-`openwislogger --config config.json.file`
+`lazylogger --config config.yml`
 
->At start-up time, OpenWisLogger will try to connect and read the size for each file in the configuration file.
->If the host is unreachable or cannot connect to it or the filepath is incorrent, OpenWisLogger will ignore this service.
-
+>Lazylogger will try to connect only when a new logger is created.
 
