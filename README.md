@@ -3,6 +3,8 @@
 Lazylogger is a small app to watch logs from different hosts in one place. Using the TUI, it is very easy to switch between log files.
 You can even split, horizontaly or verticaly, the current window and add more logs on the same page.
 
+![Gif](/docs/demo.gif)
+
 ## Configuration
 
 The configuration is based on a YAML file with the following structure:
