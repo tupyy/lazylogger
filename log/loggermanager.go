@@ -8,6 +8,7 @@ import (
 	"github.com/golang/glog"
 	"github.com/tupyy/lazylogger/conf"
 	"github.com/tupyy/lazylogger/ssh"
+)
 
 // This constants represents the maxiumum amount of data requested when
 // a writer is registered
