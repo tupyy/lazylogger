@@ -10,8 +10,7 @@ import (
 	"github.com/tupyy/lazylogger/ssh"
 )
 
-// This constants represents the maxiumum amount of data requested when
-// a writer is registered
+// maxiumum amount of data requested when a writer is registered
 const RequestDataMaxSize = 1024 * 150 // 150 kB
 
 // Interface to write debug message onto a view
