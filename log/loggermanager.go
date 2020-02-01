@@ -14,8 +14,8 @@ import (
 // a writer is registered
 const RequestDataMaxSize = 1024 * 150 // 150 kB
 
-// This interface is implemented by objects who want to show information about LoggerManager state
-type InfoWriter interface {
+// Interface to write debug message onto a view
+type DebugWriter interface {
 	WriteInfo(text string)
 	WriteError(text string)
 	WriteWarning(text string)
@@ -39,7 +39,7 @@ type LoggerManager struct {
 
 	configurations map[int]conf.LoggerConfiguration
 
-	infoWriter InfoWriter
+	debugWriter DebugWriter
 }
 
 // LogWriter is an interface that extends Writer interface by adding
@@ -63,8 +63,8 @@ func NewLoggerManager(configurations []conf.LoggerConfiguration) *LoggerManager 
 	return lm
 }
 
-func (lm *LoggerManager) SetInfoWriter(infoWriter InfoWriter) {
-	lm.infoWriter = infoWriter
+func (lm *LoggerManager) SetDebugWriter(w DebugWriter) {
+	lm.debugWriter = w
 }
 
 // CreateLoggers returns the number of loggers created.
@@ -72,11 +72,11 @@ func (lm *LoggerManager) CreateLogger(id int, conf conf.LoggerConfiguration) (*L
 
 	client, err := lm.sshPool.Connect(conf)
 	if err != nil {
-		lm.infoWriter.WriteError(err.Error())
+		lm.debugWriter.WriteError(err.Error())
 		return nil, err
 	}
 
-	lm.infoWriter.WriteInfo(fmt.Sprintf("%s is connected to %s", conf.Name, conf.Host))
+	lm.debugWriter.WriteInfo(fmt.Sprintf("%s is connected to %s", conf.Name, conf.Host))
 	remoteReader := NewRemoteReader(client, conf.File)
 	logger := NewLogger(id, lm.in)
 	logger.Start(remoteReader)
@@ -144,7 +144,7 @@ func (lm *LoggerManager) RegisterWriter(loggerID int, w LogWriter) error {
 	w.Write(data)
 
 	w.SetState(l.State.String(), l.State.Err)
-	lm.infoWriter.WriteInfo(fmt.Sprintf("Writer register for logger \"%d\".", loggerID))
+	lm.debugWriter.WriteInfo(fmt.Sprintf("Writer register for logger \"%d\".", loggerID))
 	return nil
 }
 

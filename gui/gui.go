@@ -38,6 +38,7 @@ type Gui struct {
 	// close the start method
 	done chan interface{}
 
+	// Holds the debug messages from loggers
 	debugMessages []DebugMessage
 }
 
@@ -54,7 +55,7 @@ func NewGui(app *tview.Application, lm *log.LoggerManager) *Gui {
 		debugMessages: []DebugMessage{},
 	}
 
-	lm.SetInfoWriter(&gui)
+	lm.SetDebugWriter(&gui)
 	return &gui
 }
 
@@ -129,6 +130,9 @@ func (gui *Gui) HandleEventKey(key *tcell.EventKey) {
 	}
 }
 
+// When a new logger is selected using the menu, the current view
+// must be unregistred from the logger currently attached to it and
+// registered to the new logger
 func (gui *Gui) handleLogChange(logID int, view *LogView) {
 	gui.loggerManager.UnregisterWriter(view)
 	gui.loggerManager.RegisterWriter(logID, view)
