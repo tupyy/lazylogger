@@ -1,6 +1,7 @@
 package gui
 
 import (
+	"github.com/gdamore/tcell"
 	"github.com/rivo/tview"
 	"github.com/tupyy/lazylogger/conf"
 )
@@ -43,6 +44,7 @@ func (logMainView *LogMainView) Layout() tview.Primitive {
 	return logMainView.rootFlex
 }
 
+// Activate set focus on the current logView.
 func (logMainView *LogMainView) Activate() {
 	v := logMainView.views[logMainView.currentIdx]
 	logMainView.app.SetFocus(v)
@@ -107,6 +109,24 @@ func (logMainView *LogMainView) RemoveCurrentView() *LogView {
 	}
 
 	return v
+}
+
+func (logMainView *LogMainView) HandleEventKey(key *tcell.EventKey) {
+	if key.Key() == tcell.KeyTAB {
+		logMainView.NextView()
+	} else {
+		switch key.Rune() {
+		case rune('v'):
+			logMainView.VSplit()
+		case rune('h'):
+			logMainView.HSplit()
+		case rune('m'):
+			logMainView.ShowMenu()
+		case rune('x'):
+			logMainView.RemoveCurrentView()
+			logMainView.NextView()
+		}
+	}
 }
 
 func (logMainView *LogMainView) getSelectedView() *LogView {

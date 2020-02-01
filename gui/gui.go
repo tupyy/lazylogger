@@ -9,7 +9,7 @@ import (
 	"github.com/tupyy/lazylogger/log"
 )
 
-var keyOne = rune('1')
+const keyOne = rune('1')
 
 type Gui struct {
 	app *tview.Application
@@ -38,7 +38,7 @@ type Gui struct {
 	// close the start method
 	done chan interface{}
 
-	infos []Info
+	debugMessages []DebugMessage
 }
 
 func NewGui(app *tview.Application, lm *log.LoggerManager) *Gui {
@@ -51,7 +51,7 @@ func NewGui(app *tview.Application, lm *log.LoggerManager) *Gui {
 		pages:         tview.NewPages(),
 		pageCounter:   -1,
 		done:          make(chan interface{}),
-		infos:         []Info{},
+		debugMessages: []DebugMessage{},
 	}
 
 	lm.SetInfoWriter(&gui)
@@ -87,13 +87,10 @@ func (gui *Gui) Layout() tview.Primitive {
 	return gui.rootFlex
 }
 
-// Handle key events
+// HandleEventKey handles key events. If the key is not mapped
+// to an gui actions then it is passed to the current logMainView.
 func (gui *Gui) HandleEventKey(key *tcell.EventKey) {
 	switch key.Key() {
-	case tcell.KeyTab:
-		if gui.currentLogMainView != nil {
-			gui.currentLogMainView.NextView()
-		}
 	case tcell.KeyLeft:
 		gui.previousPage()
 	case tcell.KeyRight:
@@ -121,22 +118,12 @@ func (gui *Gui) HandleEventKey(key *tcell.EventKey) {
 			gui.showInfo()
 		}
 	default:
-		if gui.currentLogMainView != nil {
-			switch key.Rune() {
-			case rune('v'):
-				gui.currentLogMainView.VSplit()
-			case rune('h'):
-				gui.currentLogMainView.HSplit()
-			case rune('m'):
-				gui.currentLogMainView.ShowMenu()
-			case rune('x'):
-				gui.currentLogMainView.RemoveCurrentView()
-				gui.currentLogMainView.NextView()
-			default:
-				idx := int(key.Rune() - keyOne)
-				if idx < len(gui.views) && idx >= 0 {
-					gui.showPage(idx)
-				}
+		idx := int(key.Rune() - keyOne)
+		if idx < len(gui.views) && idx >= 0 {
+			gui.showPage(idx)
+		} else {
+			if gui.currentLogMainView != nil {
+				gui.currentLogMainView.HandleEventKey(key)
 			}
 		}
 	}
@@ -150,19 +137,21 @@ func (gui *Gui) handleLogChange(logID int, view *LogView) {
 
 func (gui *Gui) addPage() {
 	gui.pageCounter++
-	gui.currentLogMainView = NewLogMainView(gui.pageCounter, gui.app, gui.loggerManager.GeInformations(), gui.handleLogChange)
-	gui.currentLogMainView.Activate()
+	newLogMainView := NewLogMainView(gui.pageCounter, gui.app, gui.loggerManager.GeInformations(), gui.handleLogChange)
+	newLogMainView.Activate()
 
-	gui.views = append(gui.views, gui.currentLogMainView)
+	gui.views = append(gui.views, newLogMainView)
 
-	gui.pages.AddPage(strconv.Itoa(gui.pageCounter), gui.currentLogMainView.Layout(), true, true)
+	gui.pages.AddPage(strconv.Itoa(gui.pageCounter), newLogMainView.Layout(), true, true)
 
 	names := make([]string, len(gui.views))
 	for k, v := range gui.views {
 		names[k] = strconv.Itoa(v.id)
 	}
 	gui.navBar.CreatePagesNavBar(names)
-	gui.navBar.SelectPage(strconv.Itoa(gui.currentLogMainView.id))
+	gui.navBar.SelectPage(strconv.Itoa(newLogMainView.id))
+
+	gui.currentLogMainView = newLogMainView
 }
 
 func (gui *Gui) removeCurrentPage() {
@@ -239,7 +228,7 @@ func (gui *Gui) showHelp() {
 }
 
 func (gui *Gui) showInfo() {
-	writenformations(gui.infos)
+	write(gui.debugMessages)
 	gui.navBar.SelectPage("info")
 	gui.pages.SwitchToPage("info")
 }
