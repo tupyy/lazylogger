@@ -14,7 +14,7 @@ const (
 	WARNING = iota
 )
 
-type Info struct {
+type DebugMessage struct {
 	Level int
 	Text  string
 }
@@ -24,19 +24,19 @@ func newInfoView() tview.Primitive {
 	return infoTextView
 }
 
-func writenformations(infos []Info) {
+func write(debugMessages []DebugMessage) {
 	infoTextView.Clear()
 
-	if len(infos) == 0 {
+	if len(debugMessages) == 0 {
 		fmt.Fprintf(infoTextView, "No informations yet...")
 	}
 
-	for _, info := range infos {
-		printInfo(infoTextView, info)
+	for _, m := range debugMessages {
+		printInfo(infoTextView, m)
 	}
 }
 
-func printInfo(textView *tview.TextView, i Info) {
+func printInfo(textView *tview.TextView, i DebugMessage) {
 	switch i.Level {
 	case ERROR:
 		fmt.Fprintf(textView, "[red]Error[white]: %s\n", i.Text)
