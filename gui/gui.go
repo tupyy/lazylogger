@@ -141,7 +141,7 @@ func (gui *Gui) handleLogChange(logID int, view *LogView) {
 
 func (gui *Gui) addPage() {
 	gui.pageCounter++
-	newLogMainView := NewLogMainView(gui.pageCounter, gui.app, gui.loggerManager.GeInformations(), gui.handleLogChange)
+	newLogMainView := NewLogMainView(gui.pageCounter, gui.app, gui.loggerManager.GetConfigurations(), gui.handleLogChange)
 	newLogMainView.Activate()
 
 	gui.views = append(gui.views, newLogMainView)

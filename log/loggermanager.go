@@ -84,7 +84,7 @@ func (lm *LoggerManager) CreateLogger(id int, conf conf.LoggerConfiguration) (*L
 	return logger, nil
 }
 
-func (lm *LoggerManager) GeInformations() map[int]conf.LoggerConfiguration {
+func (lm *LoggerManager) GetConfigurations() map[int]conf.LoggerConfiguration {
 	return lm.configurations
 }
 
@@ -97,14 +97,12 @@ func (lm *LoggerManager) Run() {
 				glog.V(3).Infof("DataNotification received from %d", v.ID)
 				data, _ := lm.RequestData(v.ID, v.PreviousSize, int(v.Size-v.PreviousSize))
 
-				writers := lm.getWriters(v.ID)
-				for _, w := range writers {
-					w.Write(data)
+				for l, _ := range lm.writers {
+					l.Write(data)
 				}
 			case State:
-				writers := lm.getWriters(v.ID)
-				for _, w := range writers {
-					w.SetState(v.String(), v.Err)
+				for l, _ := range lm.writers {
+					l.SetState(v.String(), v.Err)
 				}
 			}
 		case <-lm.done:
@@ -129,9 +127,8 @@ func (lm *LoggerManager) RegisterWriter(loggerID int, w LogWriter) error {
 
 	lm.writers[w] = loggerID
 
-	// ask for the last 150kB. it should be enough
+	// request min(l.CacheSize, RequestDataMaxSize)
 	cacheSize := l.CacheSize()
-
 	requestSize := cacheSize
 	offset := 0
 	if cacheSize > RequestDataMaxSize {
@@ -188,16 +185,4 @@ func (lm *LoggerManager) stopLogger(id int) int {
 	}
 
 	return id
-}
-
-func (lm *LoggerManager) getWriters(loggerID int) []LogWriter {
-	w := []LogWriter{}
-
-	for k, v := range lm.writers {
-		if v == loggerID {
-			w = append(w, k)
-		}
-	}
-
-	return w
 }
