@@ -15,12 +15,17 @@ type LogMainView struct {
 
 	rootFlex *tview.Flex
 
+	// index of the selected log view
 	currentIdx int
 
+	// holds the log views
 	views views
 
+	// keeps a copy of LoggerConfiguration to be used by the menu
 	conf map[int]conf.LoggerConfiguration
 
+	// handler called when a logger is selected in the menu.
+	// the handler is passed by Gui
 	selectLoggerHandler func(int, *LogView)
 }
 
