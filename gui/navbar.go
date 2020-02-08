@@ -6,6 +6,7 @@ import (
 	"github.com/rivo/tview"
 )
 
+// NavBar displays the navigation bar at the bottom of the screen.
 type NavBar struct {
 	*tview.TextView
 }
@@ -19,12 +20,14 @@ func NewNavBar() *NavBar {
 	return navBar
 }
 
+// CreatePagesNavBar shows the names of the pages in the navBar.
 func (navBar *NavBar) CreatePagesNavBar(names []string) {
 	navBar.Clear()
 
 	navBar.createPages(names)
 }
 
+// SelectPage highlight the page.
 func (navBar *NavBar) SelectPage(name string) {
 	navBar.Highlight(name).ScrollToHighlight()
 }

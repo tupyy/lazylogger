@@ -9,15 +9,18 @@ import (
 	"github.com/tupyy/lazylogger/conf"
 )
 
+// Menu displays a list with all the loggers available?
 type Menu struct {
 	*tview.Box
 
 	// list primitive
 	list *tview.List
 
+	// Handler to be called when a new item is selected.
 	handler func(logID int)
 }
 
+// NewMenu returns a new menu
 func NewMenu(conf map[int]conf.LoggerConfiguration, handler func(int)) *Menu {
 	l := tview.NewList()
 
