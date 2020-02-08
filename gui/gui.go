@@ -105,6 +105,7 @@ func (gui *Gui) HandleEventKey(key *tcell.EventKey) {
 			gui.showHelp()
 		}
 	default:
+		// if the key is a page number then show the page otherwise pass the key event to the currentLogMainView.
 		idx := int(key.Rune() - keyOne)
 		if idx < len(gui.views) && idx >= 0 {
 			gui.showPage(idx)
