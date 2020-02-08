@@ -35,5 +35,4 @@ func (navBar *NavBar) createPages(names []string) {
 	}
 
 	fmt.Fprintf(navBar, `Ctrl-H ["%s"][darkcyan]%s[white][""]  `, "help", "Help")
-	fmt.Fprintf(navBar, `Ctrl-J ["%s"][darkcyan]%s[white][""]  `, "info", "Info")
 }

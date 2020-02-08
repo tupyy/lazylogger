@@ -2,7 +2,6 @@ package log
 
 import (
 	"errors"
-	"fmt"
 	"io"
 
 	"github.com/golang/glog"
@@ -12,13 +11,6 @@ import (
 
 // maxiumum amount of data requested when a writer is registered
 const RequestDataMaxSize = 1024 * 150 // 150 kB
-
-// Interface to write debug message onto a view
-type DebugWriter interface {
-	WriteInfo(text string)
-	WriteError(text string)
-	WriteWarning(text string)
-}
 
 // LoggerManager handles the loggers and write any new data received from loggers to Gui LogWriter implementations.
 // A logger is created (and ssh connection dialed) only when is registered to a view. It will still run after the view unregistered.
@@ -39,8 +31,6 @@ type LoggerManager struct {
 	done chan interface{}
 
 	configurations map[int]conf.LoggerConfiguration
-
-	debugWriter DebugWriter
 }
 
 // LogWriter is an interface that extends Writer interface by adding
@@ -64,20 +54,14 @@ func NewLoggerManager(configurations []conf.LoggerConfiguration) *LoggerManager 
 	return lm
 }
 
-func (lm *LoggerManager) SetDebugWriter(w DebugWriter) {
-	lm.debugWriter = w
-}
-
 // CreateLoggers returns the number of loggers created.
 func (lm *LoggerManager) CreateLogger(id int, conf conf.LoggerConfiguration) (*Logger, error) {
 
 	client, err := lm.sshPool.Connect(conf)
 	if err != nil {
-		lm.debugWriter.WriteError(err.Error())
 		return nil, err
 	}
 
-	lm.debugWriter.WriteInfo(fmt.Sprintf("%s is connected to %s", conf.Name, conf.Host))
 	remoteReader := NewRemoteReader(client, conf.File)
 	logger := NewLogger(id, lm.in)
 	logger.Start(remoteReader)
@@ -141,7 +125,6 @@ func (lm *LoggerManager) RegisterWriter(loggerID int, w LogWriter) error {
 	w.Write(data)
 
 	w.SetState(l.State.String(), l.State.Err)
-	lm.debugWriter.WriteInfo(fmt.Sprintf("Writer register for logger \"%d\".", loggerID))
 	return nil
 }
 

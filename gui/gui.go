@@ -23,6 +23,7 @@ type Gui struct {
 	// Navbar shows page names
 	navBar *NavBar
 
+	// currently displayed logMainView
 	currentLogMainView *LogMainView
 
 	// Pages
@@ -37,9 +38,6 @@ type Gui struct {
 
 	// close the start method
 	done chan interface{}
-
-	// Holds the debug messages from loggers
-	debugMessages []DebugMessage
 }
 
 func NewGui(app *tview.Application, lm *log.LoggerManager) *Gui {
@@ -52,10 +50,8 @@ func NewGui(app *tview.Application, lm *log.LoggerManager) *Gui {
 		pages:         tview.NewPages(),
 		pageCounter:   -1,
 		done:          make(chan interface{}),
-		debugMessages: []DebugMessage{},
 	}
 
-	lm.SetDebugWriter(&gui)
 	return &gui
 }
 
@@ -80,7 +76,6 @@ func (gui *Gui) Stop() {
 
 // Layout returns the root flex
 func (gui *Gui) Layout() tview.Primitive {
-	gui.pages.AddPage("info", newInfoView(), true, true)
 	gui.pages.AddPage("help", newHelpView(), true, true)
 
 	gui.rootFlex = tview.NewFlex().SetDirection(tview.FlexRow).AddItem(gui.pages, 0, 1, true)
@@ -108,15 +103,6 @@ func (gui *Gui) HandleEventKey(key *tcell.EventKey) {
 			gui.navBar.SelectPage(n)
 		} else {
 			gui.showHelp()
-		}
-	case tcell.KeyCtrlJ:
-		currentPageName, _ := gui.pages.GetFrontPage()
-		if currentPageName == "info" && gui.currentLogMainView != nil {
-			n := strconv.Itoa(gui.currentLogMainView.id)
-			gui.pages.SwitchToPage(n)
-			gui.navBar.SelectPage(n)
-		} else {
-			gui.showInfo()
 		}
 	default:
 		idx := int(key.Rune() - keyOne)
@@ -193,7 +179,7 @@ func (gui *Gui) removeCurrentPage() {
 
 func (gui *Gui) nextPage() {
 	currentPageName, _ := gui.pages.GetFrontPage()
-	if currentPageName == "help" || currentPageName == "info" {
+	if currentPageName == "help" {
 		return
 	}
 
@@ -207,7 +193,7 @@ func (gui *Gui) nextPage() {
 
 func (gui *Gui) previousPage() {
 	currentPageName, _ := gui.pages.GetFrontPage()
-	if currentPageName == "help" || currentPageName == "info" {
+	if currentPageName == "help" {
 		return
 	}
 
@@ -228,11 +214,4 @@ func (gui *Gui) showPage(idx int) {
 
 func (gui *Gui) showHelp() {
 	gui.navBar.SelectPage("help")
-	gui.pages.SwitchToPage("help")
-}
-
-func (gui *Gui) showInfo() {
-	write(gui.debugMessages)
-	gui.navBar.SelectPage("info")
-	gui.pages.SwitchToPage("info")
 }
