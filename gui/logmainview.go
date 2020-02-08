@@ -49,8 +49,8 @@ func (logMainView *LogMainView) Layout() tview.Primitive {
 	return logMainView.rootFlex
 }
 
-// Activate set focus on the current logView.
-func (logMainView *LogMainView) Activate() {
+// Select set focus on the current logView.
+func (logMainView *LogMainView) Select() {
 	v := logMainView.views[logMainView.currentIdx]
 	logMainView.app.SetFocus(v)
 }

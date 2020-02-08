@@ -129,7 +129,7 @@ func (gui *Gui) handleLogChange(logID int, view *LogView) {
 func (gui *Gui) addPage() {
 	gui.pageCounter++
 	newLogMainView := NewLogMainView(gui.pageCounter, gui.app, gui.loggerManager.GetConfigurations(), gui.handleLogChange)
-	newLogMainView.Activate()
+	newLogMainView.Select()
 
 	gui.views = append(gui.views, newLogMainView)
 
@@ -210,9 +210,10 @@ func (gui *Gui) previousPage() {
 	gui.showPage(previousIdx)
 }
 
+// Show page with index `idx`
 func (gui *Gui) showPage(idx int) {
 	gui.currentLogMainView = gui.views[idx]
-	gui.currentLogMainView.Activate()
+	gui.currentLogMainView.Select()
 	gui.pages.SwitchToPage(strconv.Itoa(gui.currentLogMainView.id))
 	gui.navBar.SelectPage(strconv.Itoa(gui.currentLogMainView.id))
 }
