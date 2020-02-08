@@ -2,7 +2,6 @@ package log
 
 import (
 	"errors"
-	"fmt"
 	"io"
 
 	"github.com/golang/glog"
@@ -10,17 +9,11 @@ import (
 	"github.com/tupyy/lazylogger/ssh"
 )
 
-// This constants represents the maxiumum amount of data requested when
-// a writer is registered
+// maxiumum amount of data requested when a writer is registered
 const RequestDataMaxSize = 1024 * 150 // 150 kB
 
-// This interface is implemented by objects who want to show information about LoggerManager state
-type InfoWriter interface {
-	WriteInfo(text string)
-	WriteError(text string)
-	WriteWarning(text string)
-}
-
+// LoggerManager handles the loggers and write any new data received from loggers to Gui LogWriter implementations.
+// A logger is created (and ssh connection dialed) only when is registered to a view. It will still run after the view unregistered.
 type LoggerManager struct {
 
 	// map of loggers
@@ -38,8 +31,6 @@ type LoggerManager struct {
 	done chan interface{}
 
 	configurations map[int]conf.LoggerConfiguration
-
-	infoWriter InfoWriter
 }
 
 // LogWriter is an interface that extends Writer interface by adding
@@ -63,20 +54,14 @@ func NewLoggerManager(configurations []conf.LoggerConfiguration) *LoggerManager 
 	return lm
 }
 
-func (lm *LoggerManager) SetInfoWriter(infoWriter InfoWriter) {
-	lm.infoWriter = infoWriter
-}
-
 // CreateLoggers returns the number of loggers created.
 func (lm *LoggerManager) CreateLogger(id int, conf conf.LoggerConfiguration) (*Logger, error) {
 
 	client, err := lm.sshPool.Connect(conf)
 	if err != nil {
-		lm.infoWriter.WriteError(err.Error())
 		return nil, err
 	}
 
-	lm.infoWriter.WriteInfo(fmt.Sprintf("%s is connected to %s", conf.Name, conf.Host))
 	remoteReader := NewRemoteReader(client, conf.File)
 	logger := NewLogger(id, lm.in)
 	logger.Start(remoteReader)
@@ -85,7 +70,7 @@ func (lm *LoggerManager) CreateLogger(id int, conf conf.LoggerConfiguration) (*L
 	return logger, nil
 }
 
-func (lm *LoggerManager) GeInformations() map[int]conf.LoggerConfiguration {
+func (lm *LoggerManager) GetConfigurations() map[int]conf.LoggerConfiguration {
 	return lm.configurations
 }
 
@@ -97,15 +82,12 @@ func (lm *LoggerManager) Run() {
 			case DataNotification:
 				glog.V(3).Infof("DataNotification received from %d", v.ID)
 				data, _ := lm.RequestData(v.ID, v.PreviousSize, int(v.Size-v.PreviousSize))
-
-				writers := lm.getWriters(v.ID)
-				for _, w := range writers {
-					w.Write(data)
+				for l, _ := range lm.writers {
+					l.Write(data)
 				}
 			case State:
-				writers := lm.getWriters(v.ID)
-				for _, w := range writers {
-					w.SetState(v.String(), v.Err)
+				for l, _ := range lm.writers {
+					l.SetState(v.String(), v.Err)
 				}
 			}
 		case <-lm.done:
@@ -130,9 +112,8 @@ func (lm *LoggerManager) RegisterWriter(loggerID int, w LogWriter) error {
 
 	lm.writers[w] = loggerID
 
-	// ask for the last 150kB. it should be enough
+	// request min(l.CacheSize, RequestDataMaxSize)
 	cacheSize := l.CacheSize()
-
 	requestSize := cacheSize
 	offset := 0
 	if cacheSize > RequestDataMaxSize {
@@ -144,7 +125,6 @@ func (lm *LoggerManager) RegisterWriter(loggerID int, w LogWriter) error {
 	w.Write(data)
 
 	w.SetState(l.State.String(), l.State.Err)
-	lm.infoWriter.WriteInfo(fmt.Sprintf("Writer register for logger \"%d\".", loggerID))
 	return nil
 }
 
@@ -189,16 +169,4 @@ func (lm *LoggerManager) stopLogger(id int) int {
 	}
 
 	return id
-}
-
-func (lm *LoggerManager) getWriters(loggerID int) []LogWriter {
-	w := []LogWriter{}
-
-	for k, v := range lm.writers {
-		if v == loggerID {
-			w = append(w, k)
-		}
-	}
-
-	return w
 }

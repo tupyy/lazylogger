@@ -6,7 +6,7 @@ BIN_FOLDER=bin
 .DEFAULT_GOAL: $(TARGET)
 
 # These will be provided to the target
-VERSION := 2.0-alpha
+VERSION := 1.0.0 
 BUILD := `git rev-parse HEAD`
 
 # Use linker flags to provide version/build settings to the target

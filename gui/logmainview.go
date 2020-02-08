@@ -1,6 +1,7 @@
 package gui
 
 import (
+	"github.com/gdamore/tcell"
 	"github.com/rivo/tview"
 	"github.com/tupyy/lazylogger/conf"
 )
@@ -14,12 +15,17 @@ type LogMainView struct {
 
 	rootFlex *tview.Flex
 
+	// index of the selected log view
 	currentIdx int
 
+	// holds the log views
 	views views
 
+	// keeps a copy of LoggerConfiguration to be used by the menu
 	conf map[int]conf.LoggerConfiguration
 
+	// handler called when a logger is selected in the menu.
+	// the handler is passed by Gui
 	selectLoggerHandler func(int, *LogView)
 }
 
@@ -43,7 +49,8 @@ func (logMainView *LogMainView) Layout() tview.Primitive {
 	return logMainView.rootFlex
 }
 
-func (logMainView *LogMainView) Activate() {
+// Select set focus on the current logView.
+func (logMainView *LogMainView) Select() {
 	v := logMainView.views[logMainView.currentIdx]
 	logMainView.app.SetFocus(v)
 }
@@ -107,6 +114,24 @@ func (logMainView *LogMainView) RemoveCurrentView() *LogView {
 	}
 
 	return v
+}
+
+func (logMainView *LogMainView) HandleEventKey(key *tcell.EventKey) {
+	if key.Key() == tcell.KeyTAB {
+		logMainView.NextView()
+	} else {
+		switch key.Rune() {
+		case rune('v'):
+			logMainView.VSplit()
+		case rune('h'):
+			logMainView.HSplit()
+		case rune('m'):
+			logMainView.ShowMenu()
+		case rune('x'):
+			logMainView.RemoveCurrentView()
+			logMainView.NextView()
+		}
+	}
 }
 
 func (logMainView *LogMainView) getSelectedView() *LogView {

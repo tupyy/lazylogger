@@ -49,8 +49,6 @@ func main() {
 	config := conf.ReadConfigurationFile(configurationFile)
 	glog.Infof("Configuration has %d.", len(config.LoggerConfigurations))
 
-	// initiate new gui
-
 	// create the loggerManager
 	glog.Info("Create logger manager")
 	loggerManager = log.NewLoggerManager(config.LoggerConfigurations)
@@ -58,6 +56,7 @@ func main() {
 	defer loggerManager.Stop()
 
 	gui := gui.NewGui(app, loggerManager)
+
 	// ESC exits
 	app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		if event.Key() == tcell.KeyEsc {

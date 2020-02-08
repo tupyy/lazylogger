@@ -33,6 +33,7 @@ func (c *cache) clear() {
 	c.data = []byte{}
 }
 
+// Implement the ReadAt interface
 func (c *cache) ReadAt(p []byte, off int64) (n int, err error) {
 	if off < 0 {
 		return 0, fmt.Errorf("offset invalid: %d", off)

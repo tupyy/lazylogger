@@ -9,7 +9,7 @@ import (
 	"github.com/tupyy/lazylogger/log"
 )
 
-var keyOne = rune('1')
+const keyOne = rune('1')
 
 type Gui struct {
 	app *tview.Application
@@ -23,6 +23,7 @@ type Gui struct {
 	// Navbar shows page names
 	navBar *NavBar
 
+	// currently displayed logMainView
 	currentLogMainView *LogMainView
 
 	// Pages
@@ -37,8 +38,6 @@ type Gui struct {
 
 	// close the start method
 	done chan interface{}
-
-	infos []Info
 }
 
 func NewGui(app *tview.Application, lm *log.LoggerManager) *Gui {
@@ -51,10 +50,8 @@ func NewGui(app *tview.Application, lm *log.LoggerManager) *Gui {
 		pages:         tview.NewPages(),
 		pageCounter:   -1,
 		done:          make(chan interface{}),
-		infos:         []Info{},
 	}
 
-	lm.SetInfoWriter(&gui)
 	return &gui
 }
 
@@ -79,7 +76,6 @@ func (gui *Gui) Stop() {
 
 // Layout returns the root flex
 func (gui *Gui) Layout() tview.Primitive {
-	gui.pages.AddPage("info", newInfoView(), true, true)
 	gui.pages.AddPage("help", newHelpView(), true, true)
 
 	gui.rootFlex = tview.NewFlex().SetDirection(tview.FlexRow).AddItem(gui.pages, 0, 1, true)
@@ -87,13 +83,10 @@ func (gui *Gui) Layout() tview.Primitive {
 	return gui.rootFlex
 }
 
-// Handle key events
+// HandleEventKey handles key events. If the key is not mapped
+// to an gui actions then it is passed to the current logMainView.
 func (gui *Gui) HandleEventKey(key *tcell.EventKey) {
 	switch key.Key() {
-	case tcell.KeyTab:
-		if gui.currentLogMainView != nil {
-			gui.currentLogMainView.NextView()
-		}
 	case tcell.KeyLeft:
 		gui.previousPage()
 	case tcell.KeyRight:
@@ -111,37 +104,22 @@ func (gui *Gui) HandleEventKey(key *tcell.EventKey) {
 		} else {
 			gui.showHelp()
 		}
-	case tcell.KeyCtrlJ:
-		currentPageName, _ := gui.pages.GetFrontPage()
-		if currentPageName == "info" && gui.currentLogMainView != nil {
-			n := strconv.Itoa(gui.currentLogMainView.id)
-			gui.pages.SwitchToPage(n)
-			gui.navBar.SelectPage(n)
-		} else {
-			gui.showInfo()
-		}
 	default:
-		if gui.currentLogMainView != nil {
-			switch key.Rune() {
-			case rune('v'):
-				gui.currentLogMainView.VSplit()
-			case rune('h'):
-				gui.currentLogMainView.HSplit()
-			case rune('m'):
-				gui.currentLogMainView.ShowMenu()
-			case rune('x'):
-				gui.currentLogMainView.RemoveCurrentView()
-				gui.currentLogMainView.NextView()
-			default:
-				idx := int(key.Rune() - keyOne)
-				if idx < len(gui.views) && idx >= 0 {
-					gui.showPage(idx)
-				}
+		// if the key is a page number then show the page otherwise pass the key event to the currentLogMainView.
+		idx := int(key.Rune() - keyOne)
+		if idx < len(gui.views) && idx >= 0 {
+			gui.showPage(idx)
+		} else {
+			if gui.currentLogMainView != nil {
+				gui.currentLogMainView.HandleEventKey(key)
 			}
 		}
 	}
 }
 
+// When a new logger is selected using the menu, the current view
+// must be unregistred from the logger currently attached to it and
+// registered to the new logger
 func (gui *Gui) handleLogChange(logID int, view *LogView) {
 	gui.loggerManager.UnregisterWriter(view)
 	gui.loggerManager.RegisterWriter(logID, view)
@@ -150,19 +128,21 @@ func (gui *Gui) handleLogChange(logID int, view *LogView) {
 
 func (gui *Gui) addPage() {
 	gui.pageCounter++
-	gui.currentLogMainView = NewLogMainView(gui.pageCounter, gui.app, gui.loggerManager.GeInformations(), gui.handleLogChange)
-	gui.currentLogMainView.Activate()
+	newLogMainView := NewLogMainView(gui.pageCounter, gui.app, gui.loggerManager.GetConfigurations(), gui.handleLogChange)
+	newLogMainView.Select()
 
-	gui.views = append(gui.views, gui.currentLogMainView)
+	gui.views = append(gui.views, newLogMainView)
 
-	gui.pages.AddPage(strconv.Itoa(gui.pageCounter), gui.currentLogMainView.Layout(), true, true)
+	gui.pages.AddPage(strconv.Itoa(gui.pageCounter), newLogMainView.Layout(), true, true)
 
 	names := make([]string, len(gui.views))
 	for k, v := range gui.views {
 		names[k] = strconv.Itoa(v.id)
 	}
 	gui.navBar.CreatePagesNavBar(names)
-	gui.navBar.SelectPage(strconv.Itoa(gui.currentLogMainView.id))
+	gui.navBar.SelectPage(strconv.Itoa(newLogMainView.id))
+
+	gui.currentLogMainView = newLogMainView
 }
 
 func (gui *Gui) removeCurrentPage() {
@@ -198,9 +178,11 @@ func (gui *Gui) removeCurrentPage() {
 	gui.navBar.SelectPage(strconv.Itoa(gui.currentLogMainView.id))
 }
 
+// Show the next page. If the current page is the last page than show the first page.
+// When cycling through pages, the help page is not taken into account.
 func (gui *Gui) nextPage() {
 	currentPageName, _ := gui.pages.GetFrontPage()
-	if currentPageName == "help" || currentPageName == "info" {
+	if currentPageName == "help" {
 		return
 	}
 
@@ -212,9 +194,11 @@ func (gui *Gui) nextPage() {
 	gui.showPage(nextIdx)
 }
 
+// Show the previous page. If the current page is the first one than show the last page.
+// When cycling through pages, the help page is not taken into account.
 func (gui *Gui) previousPage() {
 	currentPageName, _ := gui.pages.GetFrontPage()
-	if currentPageName == "help" || currentPageName == "info" {
+	if currentPageName == "help" {
 		return
 	}
 
@@ -226,20 +210,14 @@ func (gui *Gui) previousPage() {
 	gui.showPage(previousIdx)
 }
 
+// Show page with index `idx`
 func (gui *Gui) showPage(idx int) {
 	gui.currentLogMainView = gui.views[idx]
-	gui.currentLogMainView.Activate()
+	gui.currentLogMainView.Select()
 	gui.pages.SwitchToPage(strconv.Itoa(gui.currentLogMainView.id))
 	gui.navBar.SelectPage(strconv.Itoa(gui.currentLogMainView.id))
 }
 
 func (gui *Gui) showHelp() {
 	gui.navBar.SelectPage("help")
-	gui.pages.SwitchToPage("help")
-}
-
-func (gui *Gui) showInfo() {
-	writenformations(gui.infos)
-	gui.navBar.SelectPage("info")
-	gui.pages.SwitchToPage("info")
 }
