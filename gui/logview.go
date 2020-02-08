@@ -9,15 +9,31 @@ import (
 	"github.com/tupyy/lazylogger/conf"
 )
 
+// LogView display the content of a file. It has a status bar and a menu.
+// The menu is used to select from which logger the content is displayed.
 type LogView struct {
 	*tview.Box
-	textView            *tview.TextView
-	menu                *Menu
-	showMenu            bool
+
+	// TextView display the data
+	textView *tview.TextView
+
+	// Menu primitive
+	menu *Menu
+
+	// If true the menu will be displayed instead of the textView
+	showMenu bool
+
+	// Handler to be called when a logger is selecte from the menu.
 	selectLoggerHandler func(int, *LogView)
-	conf                map[int]conf.LoggerConfiguration
-	state               string
-	err                 error
+
+	// LoggerConfiguration is used by the menu.
+	conf map[int]conf.LoggerConfiguration
+
+	// Holds the health of the current selected logger.
+	state string
+
+	// Error if any of the current selected logger.
+	err error
 }
 
 // NewLogText creates a new TextView primitive
@@ -80,6 +96,7 @@ func (l *LogView) Draw(screen tcell.Screen) {
 	}
 }
 
+// Focus set the focus either on the menu is showMenu is true or on the textView.
 func (l *LogView) Focus(delegate func(p tview.Primitive)) {
 	if l.showMenu {
 		delegate(l.menu)
@@ -88,6 +105,7 @@ func (l *LogView) Focus(delegate func(p tview.Primitive)) {
 	}
 }
 
+// Return true if either menu of textView has the focus.
 func (logView *LogView) HasFocus() bool {
 	return logView.textView.HasFocus() || logView.menu.HasFocus()
 }
@@ -102,6 +120,7 @@ func (logView *LogView) HideMenu() {
 	logView.showMenu = false
 }
 
+// Set the title of the box.
 func (l *LogView) SetTitle(host, file string) {
 	l.Box.SetTitle(fmt.Sprintf(" Logging [yellow]%s [white]from host [yellow]%s ", file, host))
 }
@@ -110,16 +129,19 @@ func (l *LogView) ClearTitle() {
 	l.Box.SetTitle("")
 }
 
+// Clear clears the textView.
 func (l *LogView) Clear() {
 	l.textView.Clear()
 }
 
+// Write writes new data to the textView.
 func (l *LogView) Write(data []byte) (int, error) {
 	n, err := l.textView.Write(data)
 	l.textView.ScrollToEnd()
 	return n, err
 }
 
+// SetState shows the state of the logger.
 func (l *LogView) SetState(state string, err error) {
 	l.state = state
 	l.err = err
