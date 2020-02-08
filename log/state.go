@@ -13,6 +13,7 @@ const (
 	STOPPED = iota
 )
 
+// State represents the state of the logger.
 type State struct {
 	ID     int
 	Health int

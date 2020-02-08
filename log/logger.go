@@ -4,6 +4,7 @@ import (
 	"github.com/golang/glog"
 )
 
+// Logger reads data from file and send data notification to clients.
 type Logger struct {
 	ID int
 
@@ -22,7 +23,7 @@ type Logger struct {
 	done chan struct{}
 }
 
-// New creates a new logger and return its ID
+// New creates a new logger
 func NewLogger(id int, out chan interface{}) *Logger {
 	l := &Logger{
 		ID:      id,
@@ -36,7 +37,7 @@ func NewLogger(id int, out chan interface{}) *Logger {
 	return l
 }
 
-// Start starts reading the file.
+// Start the logger. It runs the fetcher in a go routine.
 func (l *Logger) Start(reader FileReader) int {
 	if l.IsRunning() {
 		return l.ID
@@ -67,7 +68,7 @@ func (l *Logger) Stop() {
 	}
 }
 
-// IsRunning return true is logger is running
+// IsRunning return true if logger is running
 func (l *Logger) IsRunning() bool {
 	return l.fetcher != nil
 }
@@ -81,10 +82,12 @@ func (l *Logger) RequestData(offset int64, size int) ([]byte, int) {
 	return data, n
 }
 
+// CacheSize returns the size of the cache.
 func (l *Logger) CacheSize() int {
 	return len(l.cache.data)
 }
 
+// WriteData writes data to cache.
 func (l *Logger) WriteData(data []byte) {
 	// Handle new data from fetcher.
 	prevSize := l.cache.size
@@ -102,6 +105,7 @@ func (l *Logger) WriteData(data []byte) {
 	l.out <- notification
 }
 
+// Error sends a change in state notification.
 func (l *Logger) Error(stderr, err error) {
 	if stateChanged := l.State.HandleStateChange(stderr, err); stateChanged {
 		l.out <- *(l.State)

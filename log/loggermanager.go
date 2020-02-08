@@ -20,6 +20,8 @@ type DebugWriter interface {
 	WriteWarning(text string)
 }
 
+// LoggerManager handles the loggers and write any new data received from loggers to Gui LogWriter implementations.
+// A logger is created (and ssh connection dialed) only when is registered to a view. It will still run after the view unregistered.
 type LoggerManager struct {
 
 	// map of loggers
@@ -96,7 +98,6 @@ func (lm *LoggerManager) Run() {
 			case DataNotification:
 				glog.V(3).Infof("DataNotification received from %d", v.ID)
 				data, _ := lm.RequestData(v.ID, v.PreviousSize, int(v.Size-v.PreviousSize))
-
 				for l, _ := range lm.writers {
 					l.Write(data)
 				}

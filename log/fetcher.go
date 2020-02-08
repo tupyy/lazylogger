@@ -6,19 +6,37 @@ import (
 	"time"
 )
 
+// DataWriter is an interface that writes data fetched.
 type DataWriter interface {
 	WriteData(data []byte)
 	Error(stderr, err error)
 }
 
-// FileReader is used to read the file remotetly or locally.
+// FileReader reads data from file in small chuncks. If the size of the file has increased
+// from the last read HasNextChunk will return true and ReadNextChunk reads the file until
+// HasNextChunk returns false.
 type FileReader interface {
+
+	// GetSize return the size of the file.
 	GetSize() int32
+
+	// Setsize sets the size.
 	SetSize(int32)
+
+	// ReadNextChunk reads chunks until HasNextChunk returns false.
 	ReadNextChunk() ([]byte, error, error)
+
+	// HasNextChunk return true if the size fetched is bigger than the current size set by SetSize.
 	HasNextChunk() bool
+
+	// Close the file.
 	Close()
+
+	// FetchSize fetch the size of the file. It returns size of the file, stderr if the, for some reason
+	// (e.g file doesn't exists anymore) size cannot be read, err if there are problems with the connection.
 	FetchSize() (int32, error, error)
+
+	// Rewind resets the size to zero. It is called if the fetched size is smaller than the current size.
 	Rewind()
 }
 
@@ -27,10 +45,10 @@ type FileReader interface {
 // The size of the file is fetched every 1 seconds. If the fetched size is greated than the
 // last size return by the LogFile struct then fetchData is running.
 // fetchData will fetch the data between fetchedSize - remotelogger.GetSize().
-
 type fetcher struct {
 	id int
 
+	// channel to close the fetcher. It returns a channel to wait for the fetcher to close.
 	closing chan chan struct{}
 
 	// error to notify logger about error from fetching size or data
@@ -153,6 +171,7 @@ func (f *fetcher) fetch(fr FileReader, dataWriter DataWriter) {
 	}
 }
 
+// fetch data from source. it reads the data until the HasNextChunk returns true.
 func (f *fetcher) fetchData(fr FileReader) ([]byte, error, error) {
 	var buffer = []byte{}
 	for {
