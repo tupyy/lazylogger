@@ -178,6 +178,8 @@ func (gui *Gui) removeCurrentPage() {
 	gui.navBar.SelectPage(strconv.Itoa(gui.currentLogMainView.id))
 }
 
+// Show the next page. If the current page is the last page than show the first page.
+// When cycling through pages, the help page is not taken into account.
 func (gui *Gui) nextPage() {
 	currentPageName, _ := gui.pages.GetFrontPage()
 	if currentPageName == "help" {
@@ -192,6 +194,8 @@ func (gui *Gui) nextPage() {
 	gui.showPage(nextIdx)
 }
 
+// Show the previous page. If the current page is the first one than show the last page.
+// When cycling through pages, the help page is not taken into account.
 func (gui *Gui) previousPage() {
 	currentPageName, _ := gui.pages.GetFrontPage()
 	if currentPageName == "help" {
