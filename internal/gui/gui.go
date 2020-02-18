@@ -6,7 +6,7 @@ import (
 
 	"github.com/gdamore/tcell"
 	"github.com/rivo/tview"
-	"github.com/tupyy/lazylogger/internal/nternal/log"
+	"github.com/tupyy/lazylogger/internal/log"
 )
 
 const keyOne = rune('1')
