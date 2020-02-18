@@ -1,0 +1,5 @@
+package log
+
+import (
+	"testing"
+)
