@@ -10,7 +10,7 @@ import (
 	"sync"
 
 	"github.com/golang/glog"
-	"github.com/tupyy/lazylogger/ssh"
+	"github.com/tupyy/lazylogger/internal/ssh"
 )
 
 var (

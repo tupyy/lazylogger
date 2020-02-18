@@ -5,7 +5,7 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"github.com/golang/glog"
-	"github.com/tupyy/lazylogger/conf"
+	"github.com/tupyy/lazylogger/internal/conf"
 )
 
 type SSHPool struct {

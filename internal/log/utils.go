@@ -1,7 +1,7 @@
 package log
 
 import (
-	"github.com/tupyy/lazylogger/conf"
+	"github.com/tupyy/lazylogger/internal/conf"
 )
 
 func mapFromArray(configurations []conf.LoggerConfiguration) map[int]conf.LoggerConfiguration {

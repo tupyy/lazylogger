@@ -5,8 +5,8 @@ import (
 	"io"
 
 	"github.com/golang/glog"
-	"github.com/tupyy/lazylogger/conf"
-	"github.com/tupyy/lazylogger/ssh"
+	"github.com/tupyy/lazylogger/internal/conf"
+	"github.com/tupyy/lazylogger/internal/ssh"
 )
 
 // maxiumum amount of data requested when a writer is registered

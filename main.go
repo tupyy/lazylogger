@@ -9,9 +9,9 @@ import (
 	"github.com/gdamore/tcell"
 	"github.com/golang/glog"
 	"github.com/rivo/tview"
-	"github.com/tupyy/lazylogger/conf"
-	"github.com/tupyy/lazylogger/gui"
-	"github.com/tupyy/lazylogger/log"
+	"github.com/tupyy/lazylogger/internal/conf"
+	"github.com/tupyy/lazylogger/internal/log"
+	"github.com/tupyy/lazylogger/tnternal/gui"
 )
 
 // build flags

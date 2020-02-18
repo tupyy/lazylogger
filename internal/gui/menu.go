@@ -6,7 +6,7 @@ import (
 
 	"github.com/gdamore/tcell"
 	"github.com/rivo/tview"
-	"github.com/tupyy/lazylogger/conf"
+	"github.com/tupyy/lazylogger/internal/conf"
 )
 
 // Menu displays a list with all the loggers available?

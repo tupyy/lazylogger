@@ -6,7 +6,7 @@ import (
 
 	"github.com/gdamore/tcell"
 	"github.com/rivo/tview"
-	"github.com/tupyy/lazylogger/conf"
+	"github.com/tupyy/lazylogger/internal/conf"
 )
 
 // LogView display the content of a file. It has a status bar and a menu.
