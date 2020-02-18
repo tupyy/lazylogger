@@ -9,7 +9,7 @@ import (
 	"net"
 	"os"
 
-	"github.com/tupyy/lazylogger/conf"
+	"github.com/tupyy/lazylogger/internal/conf"
 	"golang.org/x/crypto/ssh"
 )
 
