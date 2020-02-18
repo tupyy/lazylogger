@@ -40,7 +40,7 @@ func main() {
 	flag.Parse()
 
 	if *version {
-		fmt.Printf("\nLazyLogger\n%-8s: %-10s\n%-8s: %-10s\n%-8s: %-10s\n",
+		fmt.Printf("LazyLogger:\n %-8s: %-10s\n %-8s: %-10s\n %-8s: %-10s\n",
 			"Version", Version,
 			"Build", Build,
 			"Date", BuildDate)
