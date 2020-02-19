@@ -9,8 +9,10 @@ type Docker interface {
 
 // BytesReader provides an implementation of FileReader interface.
 // It works with array of bytes returned by the docker client.
-// Due to the fact that we don't know the size of the log before we read, the behaviour is different then
+// Due to the fact that we don't know the size of the log before we read it, the behaviour is different then
 // RemoteReader. The data is fetched in the FetchSize method and the size of the log is returned.
+// Also, we have to keep the difference between the last received data and the actual data. This differece will be return when
+// ReadNextChunk is called.
 type BytesReader struct {
 
 	// container id
@@ -28,7 +30,7 @@ type BytesReader struct {
 
 // NewBytesReader creates a new BytesReader.
 func NewBytesReader(id string, client Docker) *BytesReader {
-	return &BytesReader{id, client, []byte{}, 0}
+	return &BytesReader{id, client, []byte(nil), 0}
 }
 
 // GetSize return the number of bytes read.
@@ -56,14 +58,15 @@ func (b *BytesReader) Rewind() {
 func (b *BytesReader) ReadNextChunk() ([]byte, error, error) {
 	n := int32(len(b.data))
 	if n < b.offset {
+		// rewind it means that the container has restarted because we received a smaller logger
+		// than the last time.
 		b.Rewind()
 	} else if n == b.offset {
 		return []byte{}, nil, nil
 	}
 
-	dataToSend := b.data[n-b.offset:]
 	b.offset = n
-	return dataToSend, nil, nil
+	return b.data, nil, nil
 }
 
 // FetchSize read the log from the container and save the any data beyond offset to data field.
@@ -78,7 +81,9 @@ func (b *BytesReader) FetchSize() (int32, error, error) {
 		b.Rewind()
 	}
 	if n > b.offset {
-		b.data = append(b.data, data[n-b.offset:]...)
+		//remove the previous data and keep only the difference between the last received data and the present data.
+		b.data = nil
+		b.data = append([]byte(nil), data[n-b.offset:]...)
 	}
 	return n, nil, nil
 }
