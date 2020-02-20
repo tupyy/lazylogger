@@ -1,6 +1,7 @@
 package log
 
 import (
+	"encoding/binary"
 	"errors"
 	"testing"
 )
@@ -15,7 +16,6 @@ type dockerMock struct {
 
 func (d *dockerMock) ContainerLogs(containerId string) ([]byte, int32, error, error) {
 	d.step++
-	d.offset += 2
 
 	if d.step > 1 {
 		if d.hasContainerError {
@@ -24,12 +24,18 @@ func (d *dockerMock) ContainerLogs(containerId string) ([]byte, int32, error, er
 			return []byte{}, 0, nil, errors.New("error")
 		}
 	}
-	d.data = append(d.data, []byte("1")...)
+	buff := make([]byte, binary.MaxVarintLen16)
+
+	for _, x := range []uint64{1, 2, 3} {
+		binary.PutUvarint(buff, x)
+	}
+	d.offset += int32(len(buff))
+	d.data = append(d.data, buff...)
 
 	return d.data, d.offset, nil, nil
 }
 
-func TestNominal(t *testing.T) {
+func TestBytesReader(t *testing.T) {
 	d := &dockerMock{
 		data:              []byte(nil),
 		offset:            0,
@@ -40,37 +46,105 @@ func TestNominal(t *testing.T) {
 
 	bReader := NewBytesReader("id", d)
 
-	n, e1, e2 := bReader.FetchSize()
-	if n != 2 {
-		t.Errorf("Expected: 2. Actual: %d", n)
+	var n int32
+	var e1, e2 error
+	var data []byte
+	for i := 1; i < 5; i++ {
+		n, e1, e2 = bReader.FetchSize()
+		if n != int32(i*3) {
+			t.Errorf("Expected: 2. Actual: %d", n)
+		}
+		if e1 != nil || e2 != nil {
+			t.Errorf("Expected: nil. Actual: %s %s", e1, e2)
+		}
+		if !bReader.HasNextChunk() {
+			t.Errorf("Expected: has next chunk. Actual: no next chunk")
+		}
+
+		data, e1, e2 = bReader.ReadNextChunk()
+		// We are expencting chunks of 3 bytes length
+		if len(data) != 3 {
+			t.Errorf("Expected: len(data) == %d. Actual: %d", 3, len(data))
+		}
 	}
-	if e1 != nil || e2 != nil {
-		t.Errorf("Expected: nil. Actual: %s %s", e1, e2)
+}
+
+func TestBytesReader2(t *testing.T) {
+	d := &dockerMock{
+		data:              []byte(nil),
+		offset:            0,
+		step:              0,
+		hasContainerError: true,
+		hasError:          false,
 	}
 
-	if !bReader.HasNextChunk() {
-		t.Errorf("Expected: has next chunk. Actual: no next chunk")
-	}
+	bReader := NewBytesReader("id", d)
 
-	data1, e1, e2 := bReader.ReadNextChunk()
-	if len(data1) != 2 {
-		t.Errorf("Expected: len(data1) == 2. Actual: %d", len(data1))
-	}
-
+	var n int32
+	var e1, e2 error
+	var data []byte
 	n, e1, e2 = bReader.FetchSize()
-	if n != 4 {
+	if n != 3 {
 		t.Errorf("Expected: 2. Actual: %d", n)
 	}
 	if e1 != nil || e2 != nil {
 		t.Errorf("Expected: nil. Actual: %s %s", e1, e2)
 	}
-
 	if !bReader.HasNextChunk() {
 		t.Errorf("Expected: has next chunk. Actual: no next chunk")
 	}
 
-	data, containerErr, err := bReader.ReadNextChunk()
-	if len(data) != 4 {
-		t.Errorf("Expected: len(d) == 2. Actual: %d", len(data))
+	data, e1, e2 = bReader.ReadNextChunk()
+	// We are expencting chunks of 3 bytes length
+	if len(data) != 3 {
+		t.Errorf("Expected: len(data) == %d. Actual: %d", 3, len(data))
+	}
+
+	_, e1, e2 = bReader.FetchSize()
+	if e1 == nil {
+		t.Errorf("Expected error. Got nil")
+	}
+	if e2 != nil {
+		t.Errorf("Expected e2 nil. Got error:%s", e2)
+	}
+}
+
+func TestBytesReader3(t *testing.T) {
+	d := &dockerMock{
+		data:              []byte(nil),
+		offset:            0,
+		step:              0,
+		hasContainerError: false,
+		hasError:          true,
+	}
+
+	bReader := NewBytesReader("id", d)
+
+	var n int32
+	var e1, e2 error
+	var data []byte
+	n, e1, e2 = bReader.FetchSize()
+	if n != 3 {
+		t.Errorf("Expected: 2. Actual: %d", n)
+	}
+	if e1 != nil || e2 != nil {
+		t.Errorf("Expected: nil. Actual: %s %s", e1, e2)
+	}
+	if !bReader.HasNextChunk() {
+		t.Errorf("Expected: has next chunk. Actual: no next chunk")
+	}
+
+	data, e1, e2 = bReader.ReadNextChunk()
+	// We are expencting chunks of 3 bytes length
+	if len(data) != 3 {
+		t.Errorf("Expected: len(data) == %d. Actual: %d", 3, len(data))
+	}
+
+	_, e1, e2 = bReader.FetchSize()
+	if e1 != nil {
+		t.Errorf("Expected nil. Got error:%s", e1)
+	}
+	if e2 == nil {
+		t.Error("Expected error for e2. Got nil.")
 	}
 }

@@ -24,13 +24,16 @@ type BytesReader struct {
 	// holds the last data read from container
 	data []byte
 
-	// offset represents the position
+	// offset represents the last read position
 	offset int32
+
+	// total bytes read so far
+	size int32
 }
 
 // NewBytesReader creates a new BytesReader.
 func NewBytesReader(id string, client Docker) *BytesReader {
-	return &BytesReader{id, client, []byte(nil), 0}
+	return &BytesReader{id, client, []byte(nil), 0, 0}
 }
 
 // GetSize return the number of bytes read.
@@ -39,13 +42,14 @@ func (b *BytesReader) GetSize() int32 {
 }
 
 // SetSize sets the size.
+// DEPRECATED
 func (b *BytesReader) SetSize(size int32) {
-	// nothing to do. the size if the length of data
+	// DEPRECATED
 }
 
 // HasNextChunk returns true if the size of data is greater than the offset.
 func (b *BytesReader) HasNextChunk() bool {
-	return b.offset < int32(len(b.data))
+	return b.offset < b.size
 }
 
 // Rewind set the offset to 0.
@@ -56,16 +60,11 @@ func (b *BytesReader) Rewind() {
 // ReadNextChunk return the part of data from offset to the end of bytes array.
 // It return always nil errors because the data was already fetched from container.
 func (b *BytesReader) ReadNextChunk() ([]byte, error, error) {
-	n := int32(len(b.data))
-	if n < b.offset {
-		// rewind it means that the container has restarted because we received a smaller logger
-		// than the last time.
-		b.Rewind()
-	} else if n == b.offset {
+	if b.size == b.offset {
 		return []byte{}, nil, nil
 	}
 
-	b.offset = n
+	b.offset = b.size
 	return b.data, nil, nil
 }
 
@@ -83,7 +82,8 @@ func (b *BytesReader) FetchSize() (int32, error, error) {
 	if n > b.offset {
 		//remove the previous data and keep only the difference between the last received data and the present data.
 		b.data = nil
-		b.data = append([]byte(nil), data[n-b.offset:]...)
+		b.data = append(b.data, data[b.offset:]...)
+		b.size = n
 	}
 	return n, nil, nil
 }
