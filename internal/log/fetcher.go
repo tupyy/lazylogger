@@ -21,6 +21,7 @@ type FileReader interface {
 	GetSize() int32
 
 	// Setsize sets the size.
+	// DEPRECATED. TO BE REMOVED
 	SetSize(int32)
 
 	// ReadNextChunk reads chunks until HasNextChunk returns false.

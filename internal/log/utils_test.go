@@ -2,7 +2,9 @@ package log
 
 import "testing"
 
-import "gitlab.akka.eu/Teodor-Cosmin.TUPANG/openwislogger/conf"
+import (
+	"github.com/tupyy/lazylogger/internal/conf"
+)
 
 func TestMapToArray(t *testing.T) {
 	a := conf.LoggerConfiguration{}

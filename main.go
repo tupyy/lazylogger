@@ -20,6 +20,8 @@ var (
 
 	Build string
 
+	BuildDate string
+
 	configurationFile string
 
 	// app
@@ -30,12 +32,21 @@ var (
 
 func main() {
 
-	fmt.Printf("LazyLogger Version: %s Build: %s\n\n", Version, Build)
+	var version = flag.Bool("version", false, "Show version")
 
 	// Read configuration
 	flag.StringVar(&configurationFile, "config", "nodata", "JSON configuration file")
 	var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
 	flag.Parse()
+
+	if *version {
+		fmt.Printf("LazyLogger:\n %-8s: %-10s\n %-8s: %-10s\n %-8s: %-10s\n",
+			"Version", Version,
+			"Build", Build,
+			"Date", BuildDate)
+
+		os.Exit(0)
+	}
 
 	if *cpuprofile != "" {
 		f, err := os.Create(*cpuprofile)
