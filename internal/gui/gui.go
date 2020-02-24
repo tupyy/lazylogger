@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/gdamore/tcell"
-	"github.com/rivo/tview"
+	"github.com/tupyy/tview"
 	"github.com/tupyy/lazylogger/internal/log"
 )
 
