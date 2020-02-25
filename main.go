@@ -8,7 +8,7 @@ import (
 
 	"github.com/gdamore/tcell"
 	"github.com/golang/glog"
-	"github.com/rivo/tview"
+	"github.com/tupyy/tview"
 	"github.com/tupyy/lazylogger/internal/conf"
 	"github.com/tupyy/lazylogger/internal/gui"
 	"github.com/tupyy/lazylogger/internal/log"
