@@ -3,7 +3,7 @@ package gui
 import (
 	"fmt"
 
-	"github.com/rivo/tview"
+	"github.com/tupyy/tview"
 )
 
 // NavBar displays the navigation bar at the bottom of the screen.

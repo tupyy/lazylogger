@@ -2,7 +2,7 @@ package gui
 
 import (
 	"github.com/gdamore/tcell"
-	"github.com/rivo/tview"
+	"github.com/tupyy/tview"
 	"github.com/tupyy/lazylogger/internal/conf"
 )
 

@@ -6,23 +6,21 @@ BIN_FOLDER=bin
 .DEFAULT_GOAL: $(TARGET)
 
 # These will be provided to the target
-VERSION := 1.0.0 
+VERSION := 1.1.0 
 BUILD := `git rev-parse HEAD`
+DATE := `date +"%d.%B.%Y-%T"`
 
 # Use linker flags to provide version/build settings to the target
-LDFLAGS=-ldflags "-X=main.Version=$(VERSION) -X=main.Build=$(BUILD)"
+LDFLAGS=-ldflags "-X=main.Version=$(VERSION) -X=main.Build=$(BUILD) -X=main.BuildDate="$(DATE)""
 
 # go source files, ignore vendor directory
 SRC := main.go 
-
-# erase swp file
-ERASE_SWP := $(shell find . -type f -name '*.swp' | xargs rm)
 
 .PHONY: all build clean install uninstall fmt simplify check run
 
 all: check install
 
-build:$(ERASE_SWP)
+build:  
 	@go build -o $(BIN_FOLDER)/$(TARGET) ${LDFLAGS} $(SRC) 
 
 clean:
