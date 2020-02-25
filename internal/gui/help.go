@@ -11,7 +11,7 @@ import (
 var helpTextView = tview.NewTextView()
 
 const (
-	subtitle   = `lazylogger v2.0 - Visualize logs from different hosts`
+	subtitle   = `lazylogger v1.1 - Visualize logs from different hosts`
 	navigation = `Right arrow: Next Page    Left arrow: Previous Page   P: Show Help     Ctrl-C: Exit`
 	pages      = `Ctrl+A: Add page     Ctrl+X: Delete Page`
 	window     = `v: Vertical Split     h: Hortizontal Split   m: Show Menu   x: Remove selected view`
