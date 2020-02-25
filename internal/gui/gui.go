@@ -5,8 +5,8 @@ import (
 	"time"
 
 	"github.com/gdamore/tcell"
-	"github.com/tupyy/tview"
 	"github.com/tupyy/lazylogger/internal/log"
+	"github.com/tupyy/tview"
 )
 
 const keyOne = rune('1')
@@ -122,7 +122,10 @@ func (gui *Gui) HandleEventKey(key *tcell.EventKey) {
 // registered to the new logger
 func (gui *Gui) handleLogChange(logID int, view *LogView) {
 	gui.loggerManager.UnregisterWriter(view)
-	gui.loggerManager.RegisterWriter(logID, view)
+	err := gui.loggerManager.RegisterWriter(logID, view)
+	if err != nil {
+		view.SetState("failed", err)
+	}
 	gui.app.SetFocus(view)
 }
 
