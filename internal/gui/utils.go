@@ -22,9 +22,9 @@ func ToTitle(str string) string {
 	return strings.Title(strings.ToLower(str))
 }
 
-func getIndex(arr []*LogMainView, item *LogMainView) int {
-	for k, v := range arr {
-		if v == item {
+func getIndex(names []string, name string) int {
+	for k, v := range names {
+		if v == name {
 			return k
 		}
 	}
