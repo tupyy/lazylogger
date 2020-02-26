@@ -2,13 +2,15 @@ package gui
 
 import (
 	"github.com/gdamore/tcell"
-	"github.com/tupyy/tview"
 	"github.com/tupyy/lazylogger/internal/conf"
+	"github.com/tupyy/tview"
 )
 
 type views []*LogView
 
 type LogMainView struct {
+	*tview.Box
+
 	id int
 
 	app *tview.Application
@@ -30,7 +32,8 @@ type LogMainView struct {
 }
 
 func NewLogMainView(id int, app *tview.Application, conf map[int]conf.LoggerConfiguration, selectLoggerHandler func(int, *LogView)) *LogMainView {
-	logMainView := &LogMainView{
+	l := &LogMainView{
+		Box:                 tview.NewBox().SetBackgroundColor(tcell.ColorBlack),
 		id:                  id,
 		app:                 app,
 		conf:                conf,
@@ -39,104 +42,109 @@ func NewLogMainView(id int, app *tview.Application, conf map[int]conf.LoggerConf
 		rootFlex:            tview.NewFlex(),
 	}
 
-	v := logMainView.addView()
-	logMainView.views = append(logMainView.views, v)
+	v := l.addView()
+	l.views = append(l.views, v)
 
-	return logMainView
+	return l
 }
 
-func (logMainView *LogMainView) Layout() tview.Primitive {
-	return logMainView.rootFlex
+func (l *LogMainView) Draw(screen tcell.Screen) {
+	l.Box.Draw(screen)
+	l.Box.SetBorder(false)
+
+	x, y, width, height := l.GetInnerRect()
+	l.rootFlex.SetRect(x, y, width, height)
+	l.rootFlex.Draw(screen)
 }
 
 // Select set focus on the current logView.
-func (logMainView *LogMainView) Select() {
-	v := logMainView.views[logMainView.currentIdx]
-	logMainView.app.SetFocus(v)
+func (l *LogMainView) Select() {
+	v := l.views[l.currentIdx]
+	l.app.SetFocus(v)
 }
 
-func (logMainView *LogMainView) VSplit() {
-	logMainView.rootFlex.SetDirection(tview.FlexColumn)
-	v := logMainView.addView()
-	logMainView.app.SetFocus(v)
-	logMainView.views = append(logMainView.views, v)
+func (l *LogMainView) VSplit() {
+	l.rootFlex.SetDirection(tview.FlexColumn)
+	v := l.addView()
+	l.app.SetFocus(v)
+	l.views = append(l.views, v)
 }
 
 // HSplit splits the current view horizontally
-func (logMainView *LogMainView) HSplit() {
-	logMainView.rootFlex.SetDirection(tview.FlexRow)
-	v := logMainView.addView()
-	logMainView.app.SetFocus(v)
-	logMainView.views = append(logMainView.views, v)
+func (l *LogMainView) HSplit() {
+	l.rootFlex.SetDirection(tview.FlexRow)
+	v := l.addView()
+	l.app.SetFocus(v)
+	l.views = append(l.views, v)
 }
 
 // GetNextView returns the next view which can receive focus
-func (logMainView *LogMainView) NextView() {
-	nextView := logMainView.views[0]
-	logMainView.currentIdx = 0
+func (l *LogMainView) NextView() {
+	nextView := l.views[0]
+	l.currentIdx = 0
 
-	for idx, v := range logMainView.views {
+	for idx, v := range l.views {
 		if v.HasFocus() {
-			if idx+1 < len(logMainView.views) {
-				nextView = logMainView.views[idx+1]
-				logMainView.currentIdx = idx + 1
+			if idx+1 < len(l.views) {
+				nextView = l.views[idx+1]
+				l.currentIdx = idx + 1
 			}
 		}
 	}
-	logMainView.app.SetFocus(nextView)
+	l.app.SetFocus(nextView)
 }
 
-func (logMainView *LogMainView) ShowMenu() {
-	v := logMainView.getSelectedView()
+func (l *LogMainView) ShowMenu() {
+	v := l.getSelectedView()
 	if v != nil {
 		v.ClearTitle()
 		v.ShowMenu()
-		logMainView.app.SetFocus(v)
+		l.app.SetFocus(v)
 	}
 }
 
-func (logMainView *LogMainView) RemoveCurrentView() *LogView {
-	v := logMainView.getSelectedView()
-	logMainView.rootFlex.RemoveItem(v)
+func (l *LogMainView) RemoveCurrentView() *LogView {
+	v := l.getSelectedView()
+	l.rootFlex.RemoveItem(v)
 
 	idx := 0
-	for i, vv := range logMainView.views {
+	for i, vv := range l.views {
 		if vv == v {
 			idx = i
 			break
 		}
 	}
-	logMainView.views = append(logMainView.views[:idx], logMainView.views[idx+1:]...)
+	l.views = append(l.views[:idx], l.views[idx+1:]...)
 
-	if len(logMainView.views) == 0 {
-		v := logMainView.addView()
-		logMainView.views = append(logMainView.views, v)
+	if len(l.views) == 0 {
+		v := l.addView()
+		l.views = append(l.views, v)
 	}
 
 	return v
 }
 
-func (logMainView *LogMainView) HandleEventKey(key *tcell.EventKey) {
+func (l *LogMainView) HandleEventKey(key *tcell.EventKey) {
 	if key.Key() == tcell.KeyTAB {
-		logMainView.NextView()
+		l.NextView()
 	} else {
 		switch key.Rune() {
 		case rune('v'):
-			logMainView.VSplit()
+			l.VSplit()
 		case rune('h'):
-			logMainView.HSplit()
+			l.HSplit()
 		case rune('m'):
-			logMainView.ShowMenu()
+			l.ShowMenu()
 		case rune('x'):
-			logMainView.RemoveCurrentView()
-			logMainView.NextView()
+			l.RemoveCurrentView()
+			l.NextView()
 		}
 	}
 }
 
-func (logMainView *LogMainView) getSelectedView() *LogView {
+func (l *LogMainView) getSelectedView() *LogView {
 
-	for _, v := range logMainView.views {
+	for _, v := range l.views {
 		if v.HasFocus() {
 			return v
 		}
@@ -144,8 +152,8 @@ func (logMainView *LogMainView) getSelectedView() *LogView {
 	return nil
 }
 
-func (logMainView *LogMainView) addView() *LogView {
-	view := NewLogView(logMainView.conf, logMainView.selectLoggerHandler)
-	logMainView.rootFlex.AddItem(view, 0, 1, true)
+func (l *LogMainView) addView() *LogView {
+	view := NewLogView(l.conf, l.selectLoggerHandler)
+	l.rootFlex.AddItem(view, 0, 1, true)
 	return view
 }

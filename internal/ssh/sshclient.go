@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"net"
 	"os"
+	"time"
 
 	"github.com/tupyy/lazylogger/internal/conf"
 	"golang.org/x/crypto/ssh"
@@ -37,6 +38,7 @@ func DialWithPasswd(addr, user, passwd string) (*Client, error) {
 			ssh.Password(passwd),
 		},
 		HostKeyCallback: ssh.HostKeyCallback(func(hostname string, remote net.Addr, key ssh.PublicKey) error { return nil }),
+		Timeout:         5 * time.Second,
 	}
 
 	return Dial("tcp", addr, config)
@@ -60,6 +62,7 @@ func DialWithKey(addr, user, keyfile string) (*Client, error) {
 			ssh.PublicKeys(signer),
 		},
 		HostKeyCallback: ssh.HostKeyCallback(func(hostname string, remote net.Addr, key ssh.PublicKey) error { return nil }),
+		Timeout:         5 * time.Second,
 	}
 
 	return Dial("tcp", addr, config)
@@ -83,6 +86,7 @@ func DialWithKeyWithPassphrase(addr, user, keyfile string, passphrase string) (*
 			ssh.PublicKeys(signer),
 		},
 		HostKeyCallback: ssh.HostKeyCallback(func(hostname string, remote net.Addr, key ssh.PublicKey) error { return nil }),
+		Timeout:         5 * time.Second,
 	}
 
 	return Dial("tcp", addr, config)
@@ -105,6 +109,7 @@ func DialWithJumpHost(jumpHost, host conf.Host) (*Client, error) {
 		User:            jumpHost.Username,
 		Auth:            []ssh.AuthMethod{auth},
 		HostKeyCallback: func(hostname string, remote net.Addr, key ssh.PublicKey) error { return nil },
+		Timeout:         5 * time.Second,
 	}
 
 	jumpConn, err := ssh.Dial("tcp", jumpHost.String(), jumpHostConfig)
@@ -130,6 +135,7 @@ func DialWithJumpHost(jumpHost, host conf.Host) (*Client, error) {
 		User:            host.Username,
 		Auth:            []ssh.AuthMethod{auth},
 		HostKeyCallback: func(hostname string, remote net.Addr, key ssh.PublicKey) error { return nil },
+		Timeout:         5 * time.Second,
 	}
 
 	c, chans, reqs, err := ssh.NewClientConn(remoteConn, host.String(), remoteHostConfig)

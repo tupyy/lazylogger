@@ -23,7 +23,6 @@ func NewNavBar() *NavBar {
 // CreatePagesNavBar shows the names of the pages in the navBar.
 func (navBar *NavBar) CreatePagesNavBar(names []string) {
 	navBar.Clear()
-
 	navBar.createPages(names)
 }
 
@@ -36,6 +35,5 @@ func (navBar *NavBar) createPages(names []string) {
 	for i := 0; i < len(names); i++ {
 		fmt.Fprintf(navBar, `%d ["%s"][darkcyan]Page %d[white][""]  `, i+1, names[i], i+1)
 	}
-
 	fmt.Fprintf(navBar, `Ctrl-H ["%s"][darkcyan]%s[white][""]  `, "help", "Help")
 }
