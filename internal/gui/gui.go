@@ -23,14 +23,14 @@ type Gui struct {
 	// Navbar shows page names
 	navBar *NavBar
 
-	// currently displayed logMainView
-	currentLogMainView *LogMainView
-
 	// Pages
 	pages *tview.Pages
 
-	// Holds log main views pointers
-	views []*LogMainView
+	// index of the last visible page before switching to help page
+	lastIndex int
+
+	// holds the page names
+	pageNames []string
 
 	// PageCounter is incremented on addPage and holds the last created page id.
 	// It is used to avoid name clashes when pages are removed and added.
@@ -46,9 +46,9 @@ func NewGui(app *tview.Application, lm *log.LoggerManager) *Gui {
 		app:           app,
 		loggerManager: lm,
 		navBar:        NewNavBar(),
-		views:         []*LogMainView{},
 		pages:         tview.NewPages(),
 		pageCounter:   -1,
+		lastIndex:     -1,
 		done:          make(chan interface{}),
 	}
 
@@ -94,24 +94,30 @@ func (gui *Gui) HandleEventKey(key *tcell.EventKey) {
 	case tcell.KeyCtrlA:
 		gui.addPage()
 	case tcell.KeyCtrlX:
-		gui.removeCurrentPage()
+		n, _ := gui.pages.GetFrontPage()
+		if len(n) > 0 {
+			gui.removePage(n)
+		}
 	case tcell.KeyCtrlH:
+		if gui.pages.GetPageCount() == 1 {
+			return
+		}
 		currentPageName, _ := gui.pages.GetFrontPage()
-		if currentPageName == "help" && gui.currentLogMainView != nil {
-			n := strconv.Itoa(gui.currentLogMainView.id)
-			gui.pages.SwitchToPage(n)
-			gui.navBar.SelectPage(n)
+		if currentPageName == "help" && gui.lastIndex > -1 {
+			gui.pages.SwitchToPage(gui.pageNames[gui.lastIndex])
+			gui.navBar.SelectPage(gui.pageNames[gui.lastIndex])
 		} else {
+			gui.lastIndex = getIndex(gui.pageNames, currentPageName)
 			gui.showHelp()
 		}
 	default:
 		// if the key is a page number then show the page otherwise pass the key event to the currentLogMainView.
 		idx := int(key.Rune() - keyOne)
-		if idx < len(gui.views) && idx >= 0 {
+		if idx < len(gui.pageNames) && idx >= 0 {
 			gui.showPage(idx)
 		} else {
-			if gui.currentLogMainView != nil {
-				gui.currentLogMainView.HandleEventKey(key)
+			if gui.currentLogMainView() != nil {
+				gui.currentLogMainView().HandleEventKey(key)
 			}
 		}
 	}
@@ -134,51 +140,34 @@ func (gui *Gui) addPage() {
 	newLogMainView := NewLogMainView(gui.pageCounter, gui.app, gui.loggerManager.GetConfigurations(), gui.handleLogChange)
 	newLogMainView.Select()
 
-	gui.views = append(gui.views, newLogMainView)
+	gui.pages.AddPage(strconv.Itoa(gui.pageCounter), newLogMainView, true, true)
 
-	gui.pages.AddPage(strconv.Itoa(gui.pageCounter), newLogMainView.Layout(), true, true)
-
-	names := make([]string, len(gui.views))
-	for k, v := range gui.views {
-		names[k] = strconv.Itoa(v.id)
-	}
-	gui.navBar.CreatePagesNavBar(names)
+	gui.pageNames = append(gui.pageNames, strconv.Itoa(gui.pageCounter))
+	gui.navBar.CreatePagesNavBar(gui.pageNames)
 	gui.navBar.SelectPage(strconv.Itoa(newLogMainView.id))
-
-	gui.currentLogMainView = newLogMainView
 }
 
-func (gui *Gui) removeCurrentPage() {
-	if gui.currentLogMainView == nil {
+func (gui *Gui) removePage(n string) {
+	if !gui.pages.HasPage(n) {
 		return
 	}
 
-	gui.pages.RemovePage(strconv.Itoa(gui.currentLogMainView.id))
-
-	//remove current view
-	idx := getIndex(gui.views, gui.currentLogMainView)
-	if idx >= 0 {
-		gui.views = append(gui.views[:idx], gui.views[idx+1:]...)
+	gui.pages.RemovePage(n)
+	for idx, name := range gui.pageNames {
+		if name == n {
+			gui.pageNames = append(gui.pageNames[:idx], gui.pageNames[idx+1:]...)
+			if len(gui.pageNames) == 0 {
+				gui.navBar.CreatePagesNavBar(gui.pageNames)
+				return
+			}
+			break
+		}
 	}
 
-	// delete current view and select the next one
-	gui.currentLogMainView = nil
-	if idx == len(gui.views) {
-		idx = 0
-	}
-
-	names := make([]string, len(gui.views))
-	for k, v := range gui.views {
-		names[k] = strconv.Itoa(v.id)
-	}
-
-	gui.navBar.CreatePagesNavBar(names)
-	if len(gui.views) == 0 {
-		gui.showHelp()
-		return
-	}
-	gui.currentLogMainView = gui.views[idx]
-	gui.navBar.SelectPage(strconv.Itoa(gui.currentLogMainView.id))
+	nextPageName, _ := gui.pages.GetFrontPage()
+	gui.lastIndex = getIndex(gui.pageNames, nextPageName)
+	gui.navBar.CreatePagesNavBar(gui.pageNames)
+	gui.navBar.SelectPage(nextPageName)
 }
 
 // Show the next page. If the current page is the last page than show the first page.
@@ -189,38 +178,53 @@ func (gui *Gui) nextPage() {
 		return
 	}
 
-	nextIdx := getIndex(gui.views, gui.currentLogMainView) + 1
-	if nextIdx == len(gui.views) {
-		nextIdx = 0
-	}
+	n, _ := gui.pages.GetFrontPage()
+	if len(n) > 0 {
+		nextIdx := getIndex(gui.pageNames, n) + 1
+		if nextIdx == len(gui.pageNames) {
+			nextIdx = 0
+		}
 
-	gui.showPage(nextIdx)
+		gui.showPage(nextIdx)
+	}
 }
 
 // Show the previous page. If the current page is the first one than show the last page.
 // When cycling through pages, the help page is not taken into account.
 func (gui *Gui) previousPage() {
-	currentPageName, _ := gui.pages.GetFrontPage()
-	if currentPageName == "help" {
+	n, _ := gui.pages.GetFrontPage()
+	if n == "help" {
 		return
 	}
 
-	previousIdx := getIndex(gui.views, gui.currentLogMainView) - 1
-	if previousIdx < 0 {
-		previousIdx = len(gui.views) - 1
+	if len(n) > 0 {
+		previousIdx := getIndex(gui.pageNames, n) - 1
+		if previousIdx < 0 {
+			previousIdx = len(gui.pageNames) - 1
+		}
+		gui.showPage(previousIdx)
+	}
+}
+
+func (gui *Gui) currentLogMainView() *LogMainView {
+	_, p := gui.pages.GetFrontPage()
+	if l, ok := p.(*LogMainView); ok {
+		return l
 	}
 
-	gui.showPage(previousIdx)
+	return nil
 }
 
 // Show page with index `idx`
 func (gui *Gui) showPage(idx int) {
-	gui.currentLogMainView = gui.views[idx]
-	gui.currentLogMainView.Select()
-	gui.pages.SwitchToPage(strconv.Itoa(gui.currentLogMainView.id))
-	gui.navBar.SelectPage(strconv.Itoa(gui.currentLogMainView.id))
+	name := gui.pageNames[idx]
+	gui.pages.SwitchToPage(name)
+	gui.currentLogMainView().Select()
+	gui.navBar.SelectPage(name)
+	gui.lastIndex = idx
 }
 
 func (gui *Gui) showHelp() {
+	gui.pages.SwitchToPage("help")
 	gui.navBar.SelectPage("help")
 }
