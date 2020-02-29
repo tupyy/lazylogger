@@ -9,7 +9,10 @@ import (
 	"github.com/tupyy/tview"
 )
 
-const keyOne = rune('1')
+const (
+	keyOne       = rune('1')
+	helpPageName = "help"
+)
 
 type Gui struct {
 	app *tview.Application
@@ -76,7 +79,7 @@ func (gui *Gui) Stop() {
 
 // Layout returns the root flex
 func (gui *Gui) Layout() tview.Primitive {
-	gui.pages.AddPage("help", newHelpView(), true, true)
+	gui.pages.AddPage(helpPageName, newHelpView(), true, true)
 
 	gui.rootFlex = tview.NewFlex().SetDirection(tview.FlexRow).AddItem(gui.pages, 0, 1, true)
 	gui.rootFlex.AddItem(gui.navBar, 1, 1, true)
@@ -94,20 +97,20 @@ func (gui *Gui) HandleEventKey(key *tcell.EventKey) {
 	case tcell.KeyCtrlA:
 		gui.addPage()
 	case tcell.KeyCtrlX:
-		n, _ := gui.pages.GetFrontPage()
-		if len(n) > 0 {
-			gui.removePage(n)
+		name, _ := gui.pages.GetFrontPage()
+		if name != helpPageName {
+			gui.removePage(name)
 		}
 	case tcell.KeyCtrlH:
 		if gui.pages.GetPageCount() == 1 {
 			return
 		}
-		currentPageName, _ := gui.pages.GetFrontPage()
-		if currentPageName == "help" && gui.lastIndex > -1 {
+		name, _ := gui.pages.GetFrontPage()
+		if name == helpPageName && gui.lastIndex > -1 {
 			gui.pages.SwitchToPage(gui.pageNames[gui.lastIndex])
 			gui.navBar.SelectPage(gui.pageNames[gui.lastIndex])
 		} else {
-			gui.lastIndex = getIndex(gui.pageNames, currentPageName)
+			gui.lastIndex = getIndex(gui.pageNames, name)
 			gui.showHelp()
 		}
 	default:
@@ -136,6 +139,8 @@ func (gui *Gui) handleLogChange(logID int, view *LogView) {
 }
 
 func (gui *Gui) addPage() {
+
+	// keep incrementing page counter to avoid clashes when pages are deleted
 	gui.pageCounter++
 	newLogMainView := NewLogMainView(gui.pageCounter, gui.app, gui.loggerManager.GetConfigurations(), gui.handleLogChange)
 	newLogMainView.Select()
@@ -147,14 +152,14 @@ func (gui *Gui) addPage() {
 	gui.navBar.SelectPage(strconv.Itoa(newLogMainView.id))
 }
 
-func (gui *Gui) removePage(n string) {
-	if !gui.pages.HasPage(n) {
+func (gui *Gui) removePage(name string) {
+	if !gui.pages.HasPage(name) {
 		return
 	}
 
-	gui.pages.RemovePage(n)
-	for idx, name := range gui.pageNames {
-		if name == n {
+	gui.pages.RemovePage(name)
+	for idx, n := range gui.pageNames {
+		if n == name {
 			gui.pageNames = append(gui.pageNames[:idx], gui.pageNames[idx+1:]...)
 			if len(gui.pageNames) == 0 {
 				gui.navBar.CreatePagesNavBar(gui.pageNames)
@@ -164,46 +169,41 @@ func (gui *Gui) removePage(n string) {
 		}
 	}
 
-	nextPageName, _ := gui.pages.GetFrontPage()
-	gui.lastIndex = getIndex(gui.pageNames, nextPageName)
+	n, _ := gui.pages.GetFrontPage()
+	gui.lastIndex = getIndex(gui.pageNames, n)
 	gui.navBar.CreatePagesNavBar(gui.pageNames)
-	gui.navBar.SelectPage(nextPageName)
+	gui.navBar.SelectPage(n)
 }
 
 // Show the next page. If the current page is the last page than show the first page.
 // When cycling through pages, the help page is not taken into account.
 func (gui *Gui) nextPage() {
-	currentPageName, _ := gui.pages.GetFrontPage()
-	if currentPageName == "help" {
+	name, _ := gui.pages.GetFrontPage()
+	if name == helpPageName {
 		return
 	}
 
-	n, _ := gui.pages.GetFrontPage()
-	if len(n) > 0 {
-		nextIdx := getIndex(gui.pageNames, n) + 1
-		if nextIdx == len(gui.pageNames) {
-			nextIdx = 0
-		}
-
-		gui.showPage(nextIdx)
+	nextIdx := getIndex(gui.pageNames, name) + 1
+	if nextIdx == len(gui.pageNames) {
+		nextIdx = 0
 	}
+
+	gui.showPage(nextIdx)
 }
 
 // Show the previous page. If the current page is the first one than show the last page.
 // When cycling through pages, the help page is not taken into account.
 func (gui *Gui) previousPage() {
-	n, _ := gui.pages.GetFrontPage()
-	if n == "help" {
+	name, _ := gui.pages.GetFrontPage()
+	if name == helpPageName {
 		return
 	}
 
-	if len(n) > 0 {
-		previousIdx := getIndex(gui.pageNames, n) - 1
-		if previousIdx < 0 {
-			previousIdx = len(gui.pageNames) - 1
-		}
-		gui.showPage(previousIdx)
+	previousIdx := getIndex(gui.pageNames, name) - 1
+	if previousIdx < 0 {
+		previousIdx = len(gui.pageNames) - 1
 	}
+	gui.showPage(previousIdx)
 }
 
 func (gui *Gui) currentLogMainView() *LogMainView {
@@ -225,6 +225,6 @@ func (gui *Gui) showPage(idx int) {
 }
 
 func (gui *Gui) showHelp() {
-	gui.pages.SwitchToPage("help")
-	gui.navBar.SelectPage("help")
+	gui.pages.SwitchToPage(helpPageName)
+	gui.navBar.SelectPage(helpPageName)
 }
