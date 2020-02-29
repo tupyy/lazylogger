@@ -78,7 +78,7 @@ func (l *LogMainView) HSplit() {
 	l.views = append(l.views, v)
 }
 
-// GetNextView returns the next view which can receive focus
+// NextView returns the next view which can receive focus
 func (l *LogMainView) NextView() {
 	nextView := l.views[0]
 	l.currentIdx = 0
@@ -142,8 +142,8 @@ func (l *LogMainView) HandleEventKey(key *tcell.EventKey) {
 	}
 }
 
+// Return the view which has focus
 func (l *LogMainView) getSelectedView() *LogView {
-
 	for _, v := range l.views {
 		if v.HasFocus() {
 			return v
