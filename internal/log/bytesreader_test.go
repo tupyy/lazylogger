@@ -3,6 +3,7 @@ package log
 import (
 	"encoding/binary"
 	"errors"
+	"github.com/stretchr/testify/assert"
 	"testing"
 )
 
@@ -51,21 +52,17 @@ func TestBytesReader(t *testing.T) {
 	var data []byte
 	for i := 1; i < 5; i++ {
 		n, e1, e2 = bReader.FetchSize()
-		if n != int32(i*3) {
-			t.Errorf("Expected: 2. Actual: %d", n)
-		}
-		if e1 != nil || e2 != nil {
-			t.Errorf("Expected: nil. Actual: %s %s", e1, e2)
-		}
+
+		assert.Equal(t, n, int32(i*3), "expect 2 bytes")
+		assert.NotNil(t, e1)
+		assert.NotNil(t, e2)
 		if !bReader.HasNextChunk() {
 			t.Errorf("Expected: has next chunk. Actual: no next chunk")
 		}
 
 		data, e1, e2 = bReader.ReadNextChunk()
 		// We are expencting chunks of 3 bytes length
-		if len(data) != 3 {
-			t.Errorf("Expected: len(data) == %d. Actual: %d", 3, len(data))
-		}
+		assert.Equal(t, len(data), 3, "expect 3 bytes")
 	}
 }
 
@@ -84,29 +81,20 @@ func TestBytesReader2(t *testing.T) {
 	var e1, e2 error
 	var data []byte
 	n, e1, e2 = bReader.FetchSize()
-	if n != 3 {
-		t.Errorf("Expected: 2. Actual: %d", n)
-	}
-	if e1 != nil || e2 != nil {
-		t.Errorf("Expected: nil. Actual: %s %s", e1, e2)
-	}
+	assert.Equal(t, n, 3, "expect 3 bytes")
+	assert.NotNil(t, e1)
+	assert.NotNil(t, e2)
+
 	if !bReader.HasNextChunk() {
 		t.Errorf("Expected: has next chunk. Actual: no next chunk")
 	}
 
 	data, e1, e2 = bReader.ReadNextChunk()
-	// We are expencting chunks of 3 bytes length
-	if len(data) != 3 {
-		t.Errorf("Expected: len(data) == %d. Actual: %d", 3, len(data))
-	}
+	assert.Equal(t, len(data), 3, "expect 3 bytes")
 
 	_, e1, e2 = bReader.FetchSize()
-	if e1 == nil {
-		t.Errorf("Expected error. Got nil")
-	}
-	if e2 != nil {
-		t.Errorf("Expected e2 nil. Got error:%s", e2)
-	}
+	assert.Nil(t, e1)
+	assert.NotNil(t, e2)
 }
 
 func TestBytesReader3(t *testing.T) {
@@ -124,27 +112,18 @@ func TestBytesReader3(t *testing.T) {
 	var e1, e2 error
 	var data []byte
 	n, e1, e2 = bReader.FetchSize()
-	if n != 3 {
-		t.Errorf("Expected: 2. Actual: %d", n)
-	}
-	if e1 != nil || e2 != nil {
-		t.Errorf("Expected: nil. Actual: %s %s", e1, e2)
-	}
+	assert.Equal(t, n, 3, "expect 3 bytes")
+	assert.NotNil(t, e1)
+	assert.NotNil(t, e2)
+
 	if !bReader.HasNextChunk() {
 		t.Errorf("Expected: has next chunk. Actual: no next chunk")
 	}
 
 	data, e1, e2 = bReader.ReadNextChunk()
-	// We are expencting chunks of 3 bytes length
-	if len(data) != 3 {
-		t.Errorf("Expected: len(data) == %d. Actual: %d", 3, len(data))
-	}
+	assert.Equal(t, len(data), 3, "expect 3 bytes")
 
 	_, e1, e2 = bReader.FetchSize()
-	if e1 != nil {
-		t.Errorf("Expected nil. Got error:%s", e1)
-	}
-	if e2 == nil {
-		t.Error("Expected error for e2. Got nil.")
-	}
+	assert.NotNil(t, e1)
+	assert.Nil(t, e2)
 }
