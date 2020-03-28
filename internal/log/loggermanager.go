@@ -3,7 +3,6 @@ package log
 import (
 	"errors"
 	"io"
-	"math"
 
 	"github.com/golang/glog"
 	"github.com/tupyy/lazylogger/internal/conf"
@@ -114,16 +113,14 @@ func (lm *LoggerManager) RegisterWriter(loggerID int, w LogWriter) error {
 		lm.writers[loggerID] = []LogWriter{w}
 	}
 
-	request := math.Min(logger.CacheSize(), RequestDataMaxSize)
-	cacheSize := logger.CacheSize()
-	requestSize := cacheSize
+	requestSize := logger.CacheSize()
 	offset := 0
-	if cacheSize > RequestDataMaxSize {
+	if logger.CacheSize() > RequestDataMaxSize {
 		requestSize = RequestDataMaxSize
-		offset = cacheSize - RequestDataMaxSize
+		offset = logger.CacheSize() - RequestDataMaxSize
 	}
 
-	data, _ := logger.RequestData(loggerID, int64(offset), requestSize)
+	data, _ := logger.RequestData(int64(offset), requestSize)
 	w.Write(data)
 
 	w.SetState(logger.State.String(), logger.State.Err)

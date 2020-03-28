@@ -130,7 +130,7 @@ func (gui *Gui) HandleEventKey(key *tcell.EventKey) {
 // must be unregistred from the logger currently attached to it and
 // registered to the new logger
 func (gui *Gui) handleLogChange(logID int, view *LogView) {
-	gui.loggerManager.UnregisterWriter(view)
+	gui.loggerManager.UnregisterWriter(logID)
 	err := gui.loggerManager.RegisterWriter(logID, view)
 	if err != nil {
 		view.SetState("failed", err)
