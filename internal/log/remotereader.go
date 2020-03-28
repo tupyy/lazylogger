@@ -14,7 +14,7 @@ import (
 )
 
 var (
-	// DefaultChunkSize set to 4K
+	// DefaultChunkSize set to 40K
 	DefaultChunkSize = int32(40 * 1024)
 )
 
