@@ -21,6 +21,7 @@ var (
 // ErrNofile means that the remote file doesn't exist or the user has no permission to read it.
 var ErrNofile = errors.New("file don't exist")
 
+// ErrClient means the ssh connection is down
 var ErrClient = errors.New("client error")
 
 // ErrInvalidSize means that the size as string returned by the stat command
