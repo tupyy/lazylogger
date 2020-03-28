@@ -3,6 +3,7 @@ package log
 import (
 	"errors"
 	"io"
+	"math"
 
 	"github.com/golang/glog"
 	"github.com/tupyy/lazylogger/internal/conf"
@@ -26,7 +27,7 @@ type LoggerManager struct {
 	in chan interface{}
 
 	// holds a map with registered writers. A writer can represent a textview or stdout
-	writers map[LogWriter]int
+	writers map[int][]LogWriter
 
 	done chan interface{}
 
@@ -46,7 +47,7 @@ func NewLoggerManager(configurations []conf.LoggerConfiguration) *LoggerManager 
 		loggers:        make(map[int]*Logger),
 		sshPool:        ssh.NewSSHPool(),
 		in:             make(chan interface{}),
-		writers:        make(map[LogWriter]int),
+		writers:        make(map[int][]LogWriter),
 		done:           make(chan interface{}),
 		configurations: mapFromArray(configurations),
 	}
@@ -82,12 +83,16 @@ func (lm *LoggerManager) Run() {
 			case DataNotification:
 				glog.V(3).Infof("DataNotification received from %d", v.ID)
 				data, _ := lm.RequestData(v.ID, v.PreviousSize, int(v.Size-v.PreviousSize))
-				for l, _ := range lm.writers {
-					l.Write(data)
+				if w, ok := lm.writers[v.ID]; ok {
+					for _, l := range w {
+						l.Write(data)
+					}
 				}
 			case State:
-				for l, _ := range lm.writers {
-					l.SetState(v.String(), v.Err)
+				if w, ok := lm.writers[v.ID]; ok {
+					for _, l := range w {
+						l.SetState(v.String(), v.Err)
+					}
 				}
 			}
 		case <-lm.done:
@@ -97,23 +102,20 @@ func (lm *LoggerManager) Run() {
 }
 
 func (lm *LoggerManager) RegisterWriter(loggerID int, w LogWriter) error {
-	l, ok := lm.loggers[loggerID]
-	if !ok {
-		if conf, ok := lm.configurations[loggerID]; ok {
-			logger, err := lm.CreateLogger(loggerID, conf)
-			if err != nil {
-				return err
-			}
-			l = logger
-		} else {
-			return errors.New("logger not found")
-		}
+	logger, err := lm.getLogger(loggerID)
+	if err != nil {
+		return err
 	}
 
-	lm.writers[w] = loggerID
+	if ww, ok := lm.writers[loggerID]; ok {
+		ww = append(ww, w)
+		lm.writers[loggerID] = ww
+	} else {
+		lm.writers[loggerID] = []LogWriter{w}
+	}
 
-	// request min(l.CacheSize, RequestDataMaxSize)
-	cacheSize := l.CacheSize()
+	request := math.Min(logger.CacheSize(), RequestDataMaxSize)
+	cacheSize := logger.CacheSize()
 	requestSize := cacheSize
 	offset := 0
 	if cacheSize > RequestDataMaxSize {
@@ -121,17 +123,17 @@ func (lm *LoggerManager) RegisterWriter(loggerID int, w LogWriter) error {
 		offset = cacheSize - RequestDataMaxSize
 	}
 
-	data, _ := lm.RequestData(loggerID, int64(offset), requestSize)
+	data, _ := logger.RequestData(loggerID, int64(offset), requestSize)
 	w.Write(data)
 
-	w.SetState(l.State.String(), l.State.Err)
+	w.SetState(logger.State.String(), logger.State.Err)
 	return nil
 }
 
-func (lm *LoggerManager) UnregisterWriter(lw LogWriter) error {
+func (lm *LoggerManager) UnregisterWriter(loggerID int) error {
 
-	if _, ok := lm.writers[lw]; ok {
-		delete(lm.writers, lw)
+	if _, ok := lm.writers[loggerID]; ok {
+		delete(lm.writers, loggerID)
 	}
 
 	return nil
@@ -169,4 +171,20 @@ func (lm *LoggerManager) stopLogger(id int) int {
 	}
 
 	return id
+}
+
+// Return or create a logger
+func (lm *LoggerManager) getLogger(id int) (*Logger, error) {
+	l, ok := lm.loggers[id]
+	if !ok {
+		conf := lm.configurations[id]
+		logger, err := lm.CreateLogger(id, conf)
+		if err != nil {
+			return nil, err
+		}
+		lm.loggers[id] = logger
+		l = logger
+	}
+
+	return l, nil
 }
