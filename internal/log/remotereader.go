@@ -15,7 +15,7 @@ import (
 
 var (
 	// DefaultChunkSize set to 4K
-	DefaultChunkSize = int32(4 * 1024)
+	DefaultChunkSize = int32(40 * 1024)
 )
 
 // ErrNofile means that the remote file doesn't exist or the user has no permission to read it.
@@ -145,6 +145,12 @@ func (r *RemoteReader) SetSize(size int32) {
 	var mutex = &sync.Mutex{}
 	mutex.Lock()
 	r.file.Size = size
+
+	// if size > MaxCacheSize and bytesRead == 0, skip the beggining of the file and set bytesRead to MaxCacheSize
+	if size > MaxCacheSize && r.file.BytesRead == 0 {
+		r.file.BytesRead = size - MaxCacheSize
+	}
+
 	mutex.Unlock()
 }
 
@@ -181,5 +187,4 @@ func computeNextChunkSize(size, totalBytesRead, DefaultChunkSize int32) int32 {
 	}
 
 	return chunk
-
 }
