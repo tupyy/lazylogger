@@ -1,4 +1,4 @@
-package log
+package reader
 
 // Docker represents a docker client.
 type Docker interface {

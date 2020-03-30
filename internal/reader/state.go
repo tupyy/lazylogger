@@ -1,4 +1,4 @@
-package log
+package reader
 
 const (
 	HEALTHY = iota
