@@ -4,6 +4,26 @@ import (
 	"github.com/golang/glog"
 )
 
+const (
+	StateIdle = iota
+
+	// CONNECTING means the client is try to connect to server
+	StateConnecting
+
+	// DEGRADED means the client is still running but there is a problem with the file
+	StateDegrated
+
+	// StateError means that the client is stopped mostly due to ssh connectione erros
+	StateError
+
+	// STOPPED means the client is stopped.
+	StateStopped
+
+	StateRunning
+)
+
+type State int
+
 // Client reads data from file and send data notification to clients.
 type Client struct {
 	Id int
@@ -12,7 +32,7 @@ type Client struct {
 	cache *cache
 
 	// state
-	State *State
+	State State
 
 	done chan struct{}
 }
@@ -20,12 +40,10 @@ type Client struct {
 // New creates a new logger
 func NewClient(id int, out chan interface{}) *Client {
 	c := &Client{
-		ID:      id,
-		out:     out,
-		fetcher: nil,
-		cache:   newCache(),
-		done:    make(chan struct{}),
-		State:   NewState(id),
+		Id:    id,
+		cache: newCache(),
+		done:  make(chan struct{}),
+		State: StateIdle,
 	}
 
 	return c
