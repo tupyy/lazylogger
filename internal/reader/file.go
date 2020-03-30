@@ -63,19 +63,19 @@ func (f *file) StatCommand() string {
 	return fmt.Sprintf("stat --format %%s %s", f.Path)
 }
 
-// SshReader keeps track of file to be fged on a remote host.
+// FileReader keeps track of file to be fged on a remote host.
 // Only one file can be watched at the time.
-type SshReader struct {
+type FileReader struct {
 	client *ssh.Client
 	file   file
 }
 
-// NewSshReader returns a SshReader. The remoteClient has to be already connected.
+// NewFileReader returns a FileReader. The remoteClient has to be already connected.
 // New will try to stat each file in the filepaths in order to create a Logfile for
 // each filepath
-func NewSshReader(c *ssh.Client, filename string) *SshReader {
+func NewFileReader(c *ssh.Client, filename string) *FileReader {
 
-	r := SshReader{
+	r := FileReader{
 		client: c,
 		file:   file{Path: filename, BytesRead: 0, Skip: 0, Size: 0},
 	}
@@ -84,12 +84,12 @@ func NewSshReader(c *ssh.Client, filename string) *SshReader {
 }
 
 // Close closes the connection
-func (r *SshReader) Close() {
+func (r *FileReader) Close() {
 	r.client.Close()
 }
 
 // ReadNextChunk reads the next chunk from file.
-func (r *SshReader) ReadNextChunk() ([]byte, error, error) {
+func (r *FileReader) ReadNextChunk() ([]byte, error, error) {
 	var (
 		stdout bytes.Buffer
 		stderr bytes.Buffer
@@ -120,29 +120,29 @@ func (r *SshReader) ReadNextChunk() ([]byte, error, error) {
 
 // HasNextChunk returns true if there is more data to be read from file.
 // It does not update the size of the file
-func (r *SshReader) HasNextChunk() bool {
+func (r *FileReader) HasNextChunk() bool {
 	return r.file.Size > r.file.BytesRead
 }
 
 // ReadChunk reads a single chunk at offset offset.
 // Return EOF if offset >= size
-func (r *SshReader) ReadChunk(offset int) (string, error) {
+func (r *FileReader) ReadChunk(offset int) (string, error) {
 	return "chunk", nil
 }
 
 // Rewind set bytesRead to zero
-func (r *SshReader) Rewind() {
+func (r *FileReader) Rewind() {
 	r.file.BytesRead = 0
 	r.file.Size = 0
 }
 
 // GetSize returns the size of the file
-func (r *SshReader) GetSize() int32 {
+func (r *FileReader) GetSize() int32 {
 	return r.file.Size
 }
 
 // SetSize set file size
-func (r *SshReader) SetSize(size int32) {
+func (r *FileReader) SetSize(size int32) {
 	var mutex = &sync.Mutex{}
 	mutex.Lock()
 	r.file.Size = size
@@ -157,7 +157,7 @@ func (r *SshReader) SetSize(size int32) {
 
 // FetchSize will fetch the size from the remote client
 // FetchSize returns two errors: the first one is when something is wrong with the file but the connection is ok, the second when the client is down.
-func (r *SshReader) FetchSize() (int32, error, error) {
+func (r *FileReader) FetchSize() (int32, error, error) {
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 
