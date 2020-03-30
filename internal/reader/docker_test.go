@@ -45,7 +45,7 @@ func TestBytesReader(t *testing.T) {
 		hasError:          false,
 	}
 
-	bReader := NewBytesReader("id", d)
+	bReader := NewDockerReader("id", d)
 
 	var n int32
 	var e1, e2 error
@@ -75,7 +75,7 @@ func TestBytesReader2(t *testing.T) {
 		hasError:          false,
 	}
 
-	bReader := NewBytesReader("id", d)
+	bReader := NewDockerReader("id", d)
 
 	var n int32
 	var e1, e2 error
@@ -106,7 +106,7 @@ func TestBytesReader3(t *testing.T) {
 		hasError:          true,
 	}
 
-	bReader := NewBytesReader("id", d)
+	bReader := NewDockerReader("id", d)
 
 	var n int32
 	var e1, e2 error
