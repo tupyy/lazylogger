@@ -7,18 +7,19 @@ import (
 const (
 	StateIdle = iota
 
-	// CONNECTING means the client is try to connect to server
+	// StateConnecting means the client is try to connect to server
 	StateConnecting
 
-	// DEGRADED means the client is still running but there is a problem with the file
+	// StateDegrated means the client is still running but there is a problem with the file
 	StateDegrated
 
 	// StateError means that the client is stopped mostly due to ssh connectione erros
 	StateError
 
-	// STOPPED means the client is stopped.
+	// StateStopped means the client is stopped.
 	StateStopped
 
+	// StateRunning means the client is running healthy.
 	StateRunning
 )
 
