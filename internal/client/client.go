@@ -31,11 +31,11 @@ const (
 )
 
 // TODO write good doc
-type DataSourceReader interface {
+type Datasource interface {
 	io.ReaderAt
 	io.Closer
 
-	// Size return the size of the file and any error encountered.
+	// Size return the size of the underlining datasource
 	Size() (int32, error)
 }
 
@@ -54,7 +54,7 @@ type Client struct {
 	cache *cache
 
 	// data source reader
-	reader DataSourceReader
+	reader Datasource
 
 	// bytes read
 	bytesRead int32
@@ -80,7 +80,7 @@ func (w writers) Write(p []byte) {
 }
 
 // New creates a new logger
-func NewFileClient(id int, reader DataSourceReader) *Client {
+func NewFileClient(id int, reader Datasource) *Client {
 	c := &Client{
 		Id:      id,
 		cache:   newCache(),
