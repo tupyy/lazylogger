@@ -1,150 +1,93 @@
 package reader
 
 import (
-	"errors"
+	"bytes"
+	"fmt"
+	"io"
 	"testing"
-	"time"
+
+	"github.com/stretchr/testify/assert"
 )
 
-// Mock file reader
-type mockFileReader struct {
-	// how many times the file size is increased
-	fileSizeCount int
+type mockReader struct {
+	steps []int32
 
-	// if true, an error will be sent when size is fetched
-	isSizeInvalid bool
+	currentStep int32
 
-	// if true, a client error is mocked
-	isClientInvalid bool
+	size int32
 
-	size int
-
-	byteRead int
-
-	maxChunkSize int
+	done chan interface{}
 }
 
-func (m *mockFileReader) FetchSize() (int32, error, error) {
-	if m.isSizeInvalid {
-		return 0, errors.New("size error"), nil
+func (m *mockReader) Size() (int32, error) {
+
+	m.currentStep++
+	if m.currentStep >= int32(len(m.steps)) {
+		return 0, nil
 	}
 
-	if m.isClientInvalid {
-		return 0, errors.New("size error"), errors.New("client error")
+	// if we are at the last step and there is no data to read then close the reader
+	if m.currentStep == int32(len(m.steps)-1) && m.steps[len(m.steps)-1] == 0 {
+		m.done <- struct{}{}
+		return 0, nil
 	}
 
-	if m.fileSizeCount == 0 {
-		return int32(m.size), nil, nil
+	switch m.steps[m.currentStep] {
+	case -1:
+		return 0, fmt.Errorf("read size: %w", ErrRead)
+	default:
+		m.size += m.steps[m.currentStep]
 	}
 
-	fetchedSize := m.size
-	if m.byteRead == m.size {
-		m.fileSizeCount--
-		fetchedSize += m.maxChunkSize
-	}
-	return int32(fetchedSize), nil, nil
-
+	return m.size, nil
 }
 
-func (m *mockFileReader) GetSize() int32 {
-	return int32(m.size)
+func (m *mockReader) ReadAt(p []byte, off int64) (int, error) {
+
+	if off > int64(m.size) {
+		return 0, fmt.Errorf("Offset bigger than size: %w", ErrRead)
+	} else if off == int64(m.size) {
+		return 0, io.EOF
+	}
+
+	n := int64(m.size) - off
+	b := bytes.Repeat([]byte{1}, int(n))
+	copied := copy(p, b)
+	if int64(copied) < n {
+		return copied, io.EOF
+	}
+
+	if m.currentStep >= int32(len(m.steps)-1) {
+		m.done <- struct{}{}
+	}
+
+	return copied, nil
 }
 
-func (m *mockFileReader) SetSize(s int32) {
-	m.size = int(s)
+func (m *mockReader) Close() error {
+	return nil
 }
 
-func (m *mockFileReader) Close() {
-	// Nothing to do
-}
+func TestNominal(t *testing.T) {
 
-func (m *mockFileReader) Rewind() {
-	// TODO rewind the filereader
-}
-
-func (m *mockFileReader) HasNextChunk() bool {
-	return m.byteRead < m.size
-}
-
-func (m *mockFileReader) ReadNextChunk() ([]byte, error, error) {
-	if m.isSizeInvalid {
-		return []byte{}, errors.New("size error"), nil
+	m := &mockReader{
+		currentStep: -1,
+		steps:       []int32{1, 1, 0, 0, 1},
+		done:        make(chan interface{}),
 	}
+	client := NewFileClient(0, m)
+	client.Start()
+	<-m.done
+	client.Stop()
 
-	if m.isClientInvalid {
-		return []byte{}, errors.New("size error"), errors.New("client error")
-	}
+	b := make([]byte, 3)
+	n, err := client.Read(b)
+	assert.Nil(t, err, "read error not nil")
+	assert.Equal(t, 3, n, "byte read error")
 
-	var data []byte
-	data = make([]byte, m.maxChunkSize)
-	m.byteRead += m.maxChunkSize
-	for i, _ := range data {
-		data[i] = 'a'
-	}
-	return data, nil, nil
-}
-
-func TestLoggerNominal(t *testing.T) {
-	var dataNotifications = []DataNotification{}
-	out := make(chan interface{})
-	done := make(chan interface{})
-	var err error
-
-	mock := mockFileReader{
-		isSizeInvalid:   false,
-		isClientInvalid: false,
-		fileSizeCount:   2,
-		size:            0,
-		byteRead:        0,
-		maxChunkSize:    2,
-	}
-
-	logger := NewLogger(1, out)
-	go func(done chan interface{}) {
-		for {
-			select {
-			case data := <-out:
-				if n, ok := data.(DataNotification); ok {
-					dataNotifications = append(dataNotifications, n)
-				} else {
-					err = errors.New("received something other than DataNotification struct")
-				}
-			case <-done:
-				return
-			}
-		}
-	}(done)
-
-	logger.Start(&mock)
-	if !logger.IsRunning() {
-		t.Error("logger expected to run. it is not running")
-	}
-
-	<-time.After(3 * time.Second)
-	done <- struct{}{}
-
-	logger.Stop()
-	if logger.IsRunning() {
-		t.Error("logger expected to be stopped. it is running")
-	}
-	data, _ := logger.RequestData(0, 2)
-	if len(data) != 2 {
-		t.Errorf("Expected data size 2. Actual: %d", len(data))
-	}
-
-	if err != nil {
-		t.Error(err)
-	}
-
-	if len(dataNotifications) != 2 {
-		t.Errorf("Expected: 2 notifications. Actual: %d.", len(dataNotifications))
-	}
-
-	if dataNotifications[0].Size != 2 {
-		t.Errorf("Expected: 2 bytes. Actual: %d", dataNotifications[0].Size)
-	}
-
-	if dataNotifications[1].Size != 4 || dataNotifications[1].PreviousSize != 2 {
-		t.Errorf("Expected size: 4 bytes and previous size: 2. Actual size %d. Previous size: %d", dataNotifications[1].Size, dataNotifications[1].PreviousSize)
-	}
+	// try to read more than 3 bytes. Expect 3 bytes.
+	b = make([]byte, 10)
+	n, err = client.Read(b)
+	assert.Nil(t, err, "read error not nil")
+	assert.Equal(t, 3, n, "byte read error")
 }
