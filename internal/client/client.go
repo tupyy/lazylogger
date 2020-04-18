@@ -39,29 +39,13 @@ type DataSourceReader interface {
 	Size() (int32, error)
 }
 
-type Client interface {
-	io.Reader
-	io.ReaderAt
-
-	// Start the client
-	Start()
-
-	// Stop client
-	Stop()
-
-	// Return the size of the cache
-	Size() int32
-
-	// add writer
-	AddWriter(w io.Writer)
-
-	// Remove writer
-	RemoveWriter(w io.Writer)
-}
-
 // Client reads data from file and send data notification to clients.
-type FileClient struct {
-	Id    int
+type Client struct {
+
+	// id of the client
+	Id int
+
+	// State of the client
 	State State
 
 	done chan struct{}
@@ -69,11 +53,16 @@ type FileClient struct {
 	// cache
 	cache *cache
 
+	// data source reader
 	reader DataSourceReader
 
+	// bytes read
 	bytesRead int32
-	size      int32
 
+	// size represents the total bytes read from the data source. It can be greater the size of the cache.
+	size int32
+
+	// list of writers
 	writers writers
 }
 
@@ -91,8 +80,8 @@ func (w writers) Write(p []byte) {
 }
 
 // New creates a new logger
-func NewFileClient(id int, reader DataSourceReader) *FileClient {
-	c := &FileClient{
+func NewFileClient(id int, reader DataSourceReader) *Client {
+	c := &Client{
 		Id:      id,
 		cache:   newCache(),
 		done:    make(chan struct{}),
@@ -104,40 +93,43 @@ func NewFileClient(id int, reader DataSourceReader) *FileClient {
 }
 
 // Start the client
-func (c *FileClient) Start() {
+func (c *Client) Start() {
+	c.State = StateRunning
 	go c.fetch()
 }
 
-// Stop stop reading the file. It doesn't disconnect the client.
-// it is just stop reading the file.
-func (c *FileClient) Stop() {
-	c.done <- struct{}{}
-	c.State = StateStopped
+// Stop the fetch go routine.
+// It does nothing if fetch is already stopped.
+func (c *Client) Stop() {
+	if c.State != StateStopped {
+		c.done <- struct{}{}
+		c.State = StateStopped
+	}
 }
 
 // Implementation of ReaderAt interface reading from cache.
-func (c *FileClient) ReadAt(p []byte, off int64) (n int, err error) {
+func (c *Client) ReadAt(p []byte, off int64) (n int, err error) {
 	return c.cache.ReadAt(p, off)
 }
 
 // Implementation of Reader interface reading from cache.
-func (c *FileClient) Read(p []byte) (n int, err error) {
+func (c *Client) Read(p []byte) (n int, err error) {
 	return c.cache.ReadAt(p, 0)
 }
 
 // Size returns the size of the cache.
-func (c *FileClient) Size() int32 {
+func (c *Client) Size() int32 {
 	return int32(len(c.cache.data))
 }
 
-func (c *FileClient) AddWriter(w io.Writer) {
+func (c *Client) AddWriter(w io.Writer) {
 	c.writers = append(c.writers, w)
 }
 
 // Fetch the data from reader
 // It starts by fetching the size of data source. If the fetched size is greater than the old one, it will start fetching data.
 // When all the data has been fetched, it starts fetching size again. So on until it stops.
-func (c *FileClient) fetch() {
+func (c *Client) fetch() {
 	fetchData := make(chan struct{})
 	fetchSize := make(chan struct{})
 
@@ -150,6 +142,7 @@ func (c *FileClient) fetch() {
 		select {
 		case <-c.done:
 			glog.V(2).Info("Fetch data stopped")
+			c.State = StateStopped
 			return
 		case <-fetchData:
 			chunk := c.computeNextChunk()
@@ -183,15 +176,16 @@ func (c *FileClient) fetch() {
 				c.State = c.handleStateChange(err)
 				if c.State == StateError {
 					go stop()
+				} else {
+					go startFetchingSize()
 				}
-			}
-
-			// if new size is larger than old one start fetching data
-			if c.size < newSize {
-				c.size = newSize
-				go startFetchingData()
 			} else {
-				go startFetchingSize()
+				if c.size < newSize {
+					c.size = newSize
+					go startFetchingData()
+				} else {
+					go startFetchingSize()
+				}
 			}
 		}
 	}
@@ -200,7 +194,7 @@ func (c *FileClient) fetch() {
 // Error of type ErrClient change the state to ERROR because they must represents error in fatal error in readers.
 // Usually, this means that the data source has crashed (e.g. ssh connection ended).
 // Error of type ErrRead change state to DEGRADED meaning that the reading operation failed but the connection is still ok.
-func (c *FileClient) handleStateChange(err error) State {
+func (c *Client) handleStateChange(err error) State {
 	glog.V(2).Infof("%s", err)
 	if errors.Is(err, ErrClient) {
 		glog.V(1).Infof("Client: %d. Status changed to ERROR", c.Id)
@@ -214,7 +208,7 @@ func (c *FileClient) handleStateChange(err error) State {
 }
 
 // Compute the size of the next chunk to read from file
-func (c *FileClient) computeNextChunk() int32 {
+func (c *Client) computeNextChunk() int32 {
 	if c.size-c.bytesRead < defaultChunkSize {
 		return c.size - c.bytesRead
 	}
@@ -223,6 +217,6 @@ func (c *FileClient) computeNextChunk() int32 {
 }
 
 // Return true if there is still data to be read from file
-func (c *FileClient) hasNextChunk() bool {
+func (c *Client) hasNextChunk() bool {
 	return c.size < c.bytesRead
 }
