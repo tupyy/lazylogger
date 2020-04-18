@@ -6,12 +6,9 @@ import (
 	"os"
 	"runtime/pprof"
 
-	"github.com/gdamore/tcell"
 	"github.com/golang/glog"
-	"github.com/tupyy/tview"
 	"github.com/tupyy/lazylogger/internal/conf"
-	"github.com/tupyy/lazylogger/internal/gui"
-	"github.com/tupyy/lazylogger/internal/log"
+	"github.com/tupyy/tview"
 )
 
 // build flags
@@ -26,8 +23,6 @@ var (
 
 	// app
 	app = tview.NewApplication()
-
-	loggerManager *log.LoggerManager
 )
 
 func main() {
@@ -58,28 +53,26 @@ func main() {
 	}
 
 	config := conf.ReadConfigurationFile(configurationFile)
-	glog.Infof("Configuration has %d.", len(config.LoggerConfigurations))
+	glog.Infof("Configuration has %d.", len(config.Entries))
 
 	// create the loggerManager
 	glog.Info("Create logger manager")
-	loggerManager = log.NewLoggerManager(config.LoggerConfigurations)
-	go loggerManager.Run()
-	defer loggerManager.Stop()
 
-	gui := gui.NewGui(app, loggerManager)
+	/*
+		gui := gui.NewGui(app, loggerManager)
 
-	// ESC exits
-	app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		if event.Key() == tcell.KeyEsc {
-			gui.Stop()
-			loggerManager.Stop()
-			app.Stop()
-		}
-		gui.HandleEventKey(event)
-		return event
-	})
+		// ESC exits
+		app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+			if event.Key() == tcell.KeyEsc {
+				gui.Stop()
+				loggerManager.Stop()
+				app.Stop()
+			}
+			gui.HandleEventKey(event)
+			return event
+		})
 
-	app.SetRoot(gui.Layout(), true)
-	gui.Start()
-	app.Run()
+		app.SetRoot(gui.Layout(), true)
+		gui.Start()
+		app.Run() */
 }

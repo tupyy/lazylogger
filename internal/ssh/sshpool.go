@@ -26,7 +26,7 @@ func createHash(addr, user, pwd string) string {
 // Connect looks for a existing client in clients. If a client is found, returns it.
 // If not, it dials a new connection.
 // Connect doesn't check if a connection is still alive
-func (sshPool *SSHPool) Connect(conf conf.LoggerConfiguration) (*Client, error) {
+func (sshPool *SSHPool) Connect(conf conf.ConfigurationEntry) (*Client, error) {
 	host := conf.Host
 	hashID := createHash(host.String(), host.Username, host.Password)
 	v, ok := sshPool.clients[hashID]
