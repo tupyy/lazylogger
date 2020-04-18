@@ -27,7 +27,7 @@ type ConfigurationEntry struct {
 }
 
 type Configuration struct {
-	entries []ConfigurationEntry `mapstructure:"entries"`
+	Entries []ConfigurationEntry `mapstructure:"entries"`
 }
 
 var (
