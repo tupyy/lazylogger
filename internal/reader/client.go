@@ -31,7 +31,7 @@ const (
 )
 
 // TODO write good doc
-type IReader interface {
+type DataSourceReader interface {
 	io.ReaderAt
 	io.Closer
 
@@ -43,10 +43,19 @@ type Client interface {
 	io.Reader
 	io.ReaderAt
 
+	// Start the client
 	Start()
+
+	// Stop client
 	Stop()
+
+	// Return the size of the cache
 	Size() int32
+
+	// add writer
 	AddWriter(w io.Writer)
+
+	// Remove writer
 	RemoveWriter(w io.Writer)
 }
 
@@ -60,7 +69,7 @@ type FileClient struct {
 	// cache
 	cache *cache
 
-	reader IReader
+	reader DataSourceReader
 
 	bytesRead int32
 	size      int32
@@ -82,7 +91,7 @@ func (w writers) Write(p []byte) {
 }
 
 // New creates a new logger
-func NewFileClient(id int, reader IReader) *FileClient {
+func NewFileClient(id int, reader DataSourceReader) *FileClient {
 	c := &FileClient{
 		Id:      id,
 		cache:   newCache(),
@@ -106,12 +115,12 @@ func (c *FileClient) Stop() {
 	c.State = StateStopped
 }
 
-// Implementation of ReaderAt interface
+// Implementation of ReaderAt interface reading from cache.
 func (c *FileClient) ReadAt(p []byte, off int64) (n int, err error) {
 	return c.cache.ReadAt(p, off)
 }
 
-// Implementation of Reader interface
+// Implementation of Reader interface reading from cache.
 func (c *FileClient) Read(p []byte) (n int, err error) {
 	return c.cache.ReadAt(p, 0)
 }
@@ -125,8 +134,9 @@ func (c *FileClient) AddWriter(w io.Writer) {
 	c.writers = append(c.writers, w)
 }
 
-// Fetch the data from file
-// TODO doc
+// Fetch the data from reader
+// It starts by fetching the size of data source. If the fetched size is greater than the old one, it will start fetching data.
+// When all the data has been fetched, it starts fetching size again. So on until it stops.
 func (c *FileClient) fetch() {
 	fetchData := make(chan struct{})
 	fetchSize := make(chan struct{})
@@ -187,6 +197,9 @@ func (c *FileClient) fetch() {
 	}
 }
 
+// Error of type ErrClient change the state to ERROR because they must represents error in fatal error in readers.
+// Usually, this means that the data source has crashed (e.g. ssh connection ended).
+// Error of type ErrRead change state to DEGRADED meaning that the reading operation failed but the connection is still ok.
 func (c *FileClient) handleStateChange(err error) State {
 	glog.V(2).Infof("%s", err)
 	if errors.Is(err, ErrClient) {
