@@ -40,7 +40,32 @@ type Datasource interface {
 	Size() (int32, error)
 }
 
-// Client reads data from file and send data notification to clients.
+// Client implements basic mechanism to read from a data source.
+//
+// This mechanism has two actions fetching size and fetching data from data source.
+// Client store the size of the data source internally and regulary checks if the fetched size is greater than the stored size.
+// If true, it starts fetching data between the old size and the new size otherwise it will wait 1 sec and tries again.
+//
+// Fetching data is done in chunks. The max size of a chunk is 100kb. After each fetched chunk, it computes the size of the next chunk which is
+// the difference between the size of the data source and the total bytes read from source.
+// The next chunk cannot be greater than 100kb.
+// When all the data is fetched from source, the client starts to fetch the size again.
+// The data fetched from data source is kept in cache of 300kb in size. The cache rotates meaning il will overwrite the old data if size reached the maximum size.
+//
+// There are two types of errors which can be returned by a data source: ErrDatasource and ErrRead.
+// ErrDatasource means that there is a fatal error with the data source like the lost of ssh connection.
+// In the event of a ErrDatasource, the client stops and state of the client becomes StateError
+//
+// ErrRead is a reading error. Although the datasource is fine there is a problem reading the underlying source. For example, for SshDatasource, it can means that
+// the file is no longer available. In this case, the clients pass to StateDegrated but keeps trying to fetch size. If at some point, the returned error is nil,
+// the state changes to StateRunning and the process starts again.
+//
+// When client is stopped, it stops the go routine which implements the fetching mechanism but it does not close the data source.
+//
+// Writers can be registers to client. A writer is any type which implements the io.Writer interface. When new data is fetched, the client automatically writes
+// the data to any registered writer.
+// Client implements the io.Reader and io.ReaderAt interfaces meaning anyone can read from a client using Read and ReadAt methods. In this case, the data is read
+// from the cache. The implementations of ReaderAt do not block if data is not available and it return the number of bytes available if any and io.EOF error.
 type Client struct {
 
 	// id of the client
