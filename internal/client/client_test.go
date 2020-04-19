@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/tupyy/lazylogger/internal/datasource"
 )
 
 type mockDataSourceReader struct {
@@ -50,10 +51,10 @@ func (m *mockDataSourceReader) Size() (int32, error) {
 
 	switch m.data[m.currentStep] {
 	case -1:
-		return 0, fmt.Errorf("read size: %w", ErrRead)
+		return 0, fmt.Errorf("read size: %w", datasource.ErrRead)
 	case -2:
 		m.isDone = true
-		return 0, fmt.Errorf("client error: %w", ErrClient)
+		return 0, fmt.Errorf("client error: %w", datasource.ErrDatasource)
 	default:
 		m.size += m.data[m.currentStep]
 	}
@@ -62,19 +63,20 @@ func (m *mockDataSourceReader) Size() (int32, error) {
 }
 
 func (m *mockDataSourceReader) ReadAt(p []byte, off int64) (int, error) {
+	var one = uint8(1)
 
 	if m.isDone {
 		return 0, nil
 	}
 
 	if off > int64(m.size) {
-		return 0, fmt.Errorf("Offset bigger than size: %w", ErrRead)
+		return 0, fmt.Errorf("Offset bigger than size: %w", datasource.ErrRead)
 	} else if off == int64(m.size) {
 		return 0, io.EOF
 	}
 
 	n := int64(m.size) - off
-	b := bytes.Repeat([]byte{1}, int(n))
+	b := bytes.Repeat([]byte{one}, int(n))
 	copied := copy(p, b)
 	if int64(copied) < n {
 		return copied, io.EOF
@@ -144,10 +146,16 @@ func TestNominal(t *testing.T) {
 		<-done
 
 		client.Stop()
-		b := make([]byte, 100)
-		n, err := client.Read(b)
-		assert.Nil(t, err, "read error not nil")
-		assert.Equal(t, m.ExpectedSize(), n, fmt.Sprintf("Data set %d", idx))
-
+		if m.ExpectedSize() == 0 {
+			b := make([]byte, 2)
+			n, err := client.Read(b)
+			assert.EqualError(t, io.EOF, err.Error(), fmt.Sprintf("Data set %d", idx))
+			assert.Equal(t, m.ExpectedSize(), n, fmt.Sprintf("Data set %d", idx))
+		} else {
+			b := make([]byte, m.ExpectedSize())
+			n, err := client.Read(b)
+			assert.Nil(t, err, fmt.Sprintf("Data set %d", idx))
+			assert.Equal(t, m.ExpectedSize(), n, fmt.Sprintf("Data set %d", idx))
+		}
 	}
 }
