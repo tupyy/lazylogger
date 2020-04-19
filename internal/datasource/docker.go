@@ -1,4 +1,4 @@
-package client
+package datasource
 
 // Docker represents a docker client.
 type Docker interface {

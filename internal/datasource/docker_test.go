@@ -1,4 +1,4 @@
-package client
+package datasource
 
 import (
 	"encoding/binary"

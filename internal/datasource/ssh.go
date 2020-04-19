@@ -1,4 +1,4 @@
-package client
+package datasource
 
 import (
 	"bytes"
@@ -10,14 +10,6 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/tupyy/lazylogger/internal/ssh"
-)
-
-var (
-	// ErrNofile means that the remote file doesn't exist or the user has no permission to read it.
-	ErrRead = errors.New("read error")
-
-	// ErrClient means the ssh connection is down
-	ErrClient = errors.New("client error")
 )
 
 // SSHFileReader implements DataSourceReader.
@@ -64,7 +56,7 @@ func (r *SSHFileReader) ReadAt(p []byte, off int64) (int, error) {
 
 	err := r.client.Cmd(cmd).SetStdio(&stdout, &stderr).Run()
 	if err != nil && err != io.EOF {
-		return 0, fmt.Errorf("%v: %w", errors.New(string(stderr.Bytes())), ErrClient)
+		return 0, fmt.Errorf("%v: %w", errors.New(string(stderr.Bytes())), ErrDatasource)
 	}
 
 	n, err := stdout.Read(p)
@@ -82,9 +74,9 @@ func (r *SSHFileReader) Size() (int32, error) {
 	err := r.client.Cmd(statCommand(r.filename)).SetStdio(&stdout, &stderr).Run()
 	if err != nil {
 		if len(stderr.Bytes()) == 0 {
-			return 0, ErrClient
+			return 0, ErrDatasource
 		} else {
-			return 0, fmt.Errorf("error: %s: %w", string(stderr.Bytes()), ErrClient)
+			return 0, fmt.Errorf("error: %s: %w", string(stderr.Bytes()), ErrDatasource)
 		}
 	}
 
