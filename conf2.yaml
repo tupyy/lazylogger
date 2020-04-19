@@ -1,0 +1,15 @@
+entries:
+    -
+        name: vm1
+        Host: 
+            Address: 192.168.2.100
+            Username: user 
+            Password: user 
+        File: /home/user/test1
+    -
+        name: vm2
+        Host: 
+            Address: 192.168.2.101
+            Username: user
+            Password: user 
+        File: /home/user/test2

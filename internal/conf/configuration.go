@@ -19,7 +19,7 @@ func (h *Host) String() string {
 	return fmt.Sprintf("%s:%d", h.Address, 22)
 }
 
-type LoggerConfiguration struct {
+type ConfigurationEntry struct {
 	Name     string `mapstructure:"name"`
 	Host     Host   `mapstructure:"host"`
 	JumpHost Host   `mapstructure:"jumpHost"`
@@ -27,13 +27,12 @@ type LoggerConfiguration struct {
 }
 
 type Configuration struct {
-	LoggerConfigurations []LoggerConfiguration `mapstructure:"services"`
-	DefaultChunkSize     uint32
+	Entries []ConfigurationEntry `mapstructure:"entries"`
 }
 
 var (
 	configurationFile string
-	settings          Configuration
+	conf              Configuration
 )
 
 func ReadConfigurationFile(file string) Configuration {
@@ -44,10 +43,10 @@ func ReadConfigurationFile(file string) Configuration {
 		os.Stderr.WriteString(fmt.Sprintf("Configuration error: %s", err))
 	}
 
-	err := mapstructure.Decode(viper.AllSettings(), &settings)
+	err := mapstructure.Decode(viper.AllSettings(), &conf)
 	if err != nil {
 		panic(err)
 	}
 
-	return settings
+	return conf
 }
