@@ -5,6 +5,7 @@ import (
 	"io"
 
 	"github.com/golang/glog"
+	"github.com/tupyy/lazylogger/internal/datasource"
 )
 
 type State uint32
@@ -30,7 +31,7 @@ const (
 	defaultChunkSize = 100 * 1024 // 100k
 )
 
-// TODO write good doc
+// The implementations of this interface must provide a way to read data from a source.
 type Datasource interface {
 	io.ReaderAt
 	io.Closer
@@ -48,13 +49,15 @@ type Client struct {
 	// State of the client
 	State State
 
+	// datasource
+	Datasource Datasource
+
 	done chan struct{}
 
 	// cache
 	cache *cache
 
 	// data source reader
-	reader Datasource
 
 	// bytes read
 	bytesRead int32
@@ -82,11 +85,11 @@ func (w writers) Write(p []byte) {
 // New creates a new logger
 func NewFileClient(id int, reader Datasource) *Client {
 	c := &Client{
-		Id:      id,
-		cache:   newCache(),
-		done:    make(chan struct{}),
-		writers: []io.Writer{},
-		reader:  reader,
+		Id:         id,
+		cache:      newCache(),
+		done:       make(chan struct{}),
+		writers:    []io.Writer{},
+		Datasource: reader,
 	}
 
 	return c
@@ -149,7 +152,7 @@ func (c *Client) fetch() {
 			glog.V(2).Infof("Fetching next chunk of %d bytes.", chunk)
 
 			p := make([]byte, chunk)
-			bytesRead, err := c.reader.ReadAt(p, int64(c.bytesRead))
+			bytesRead, err := c.Datasource.ReadAt(p, int64(c.bytesRead))
 			if err != nil {
 				c.State = c.handleStateChange(err)
 				if c.State == StateError {
@@ -171,7 +174,7 @@ func (c *Client) fetch() {
 				}
 			}
 		case <-fetchSize:
-			newSize, err := c.reader.Size()
+			newSize, err := c.Datasource.Size()
 			if err != nil {
 				c.State = c.handleStateChange(err)
 				if c.State == StateError {
@@ -196,10 +199,10 @@ func (c *Client) fetch() {
 // Error of type ErrRead change state to DEGRADED meaning that the reading operation failed but the connection is still ok.
 func (c *Client) handleStateChange(err error) State {
 	glog.V(2).Infof("%s", err)
-	if errors.Is(err, ErrClient) {
+	if errors.Is(err, datasource.ErrDatasource) {
 		glog.V(1).Infof("Client: %d. Status changed to ERROR", c.Id)
 		return StateError
-	} else if errors.Is(err, ErrRead) {
+	} else if errors.Is(err, datasource.ErrRead) {
 		glog.V(1).Infof("Client %d. Status changed to DEGRADED", c.Id)
 		return StateDegrated
 	}
