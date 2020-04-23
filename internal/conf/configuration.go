@@ -2,7 +2,6 @@ package conf
 
 import (
 	"github.com/koding/multiconfig"
-	"github.com/mitchellh/mapstructure"
 )
 
 type Host struct {
@@ -22,9 +21,9 @@ type SSHDatasourceDef struct {
 
 // Alias represents a shortcut to a command. It has at least three values: a host, a file and a command.
 type Alias struct {
-	Datasource interface{}
-	Command    string
-	Flags      string
+	Datasource interface{} `required:"true"`
+	Command    string      `required:"true"`
+	Flags      string      `required:"true"`
 }
 
 type Configuration struct {
@@ -41,17 +40,10 @@ var (
 func ReadConfiguration(file string) (Configuration, error) {
 	l := &multiconfig.TOMLLoader{Path: file}
 
-	c := make(map[string]interface{})
+	c := Configuration{}
 	err := l.Load(&c)
 	if err != nil {
 		return Configuration{}, err
 	}
-
-	cc := Configuration{}
-	err = mapstructure.Decode(c, &cc)
-	if err != nil {
-		return Configuration{}, err
-	}
-
-	return cc, nil
+	return c, nil
 }
