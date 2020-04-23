@@ -1,0 +1,23 @@
+[hosts]
+    [hosts.A]
+        name = "a"
+        address = "192.168.2.1"
+        username = "cosmin"
+        key = "supersupersecretkey"
+    [hosts.B]
+        name = "b"
+        address = "192.168.2.1"
+        username = "cosmin"
+        key = "supersupersecretkey"
+
+[datasources]
+    [datasources.d1]
+    host = "a"
+    jumpHost = "b"
+    file = "test.file"
+
+[aliases]
+    [alias.alias1]
+    datasource = d1
+    command = "test"
+    flags = "-f -g"

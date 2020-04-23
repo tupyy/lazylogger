@@ -1,7 +1,8 @@
-package log
+package client
 
 import (
 	"fmt"
+	"io"
 	"sync"
 )
 
@@ -11,7 +12,8 @@ const (
 	MaxCacheSize = 3 * 1024 * 100
 )
 
-// Cache holds the data from a fetcher.
+// Cache holds the data read from a datasource.
+// It only holds 300kb of data rotating the data.
 type cache struct {
 	mutex *sync.Mutex
 	data  []byte
@@ -33,7 +35,12 @@ func (c *cache) clear() {
 	c.data = []byte{}
 }
 
-// Implement the ReadAt interface
+// This is not a perfect implementations of ReaderAt interface because it will not block
+// if len(p) are not available.
+//
+// If n < len(p) is returning EOF.
+// If the offset is greater than the size of available data, it returns EOF.
+// if n == len(p) at the end of input source, it returns nil.
 func (c *cache) ReadAt(p []byte, off int64) (n int, err error) {
 	if off < 0 {
 		return 0, fmt.Errorf("offset invalid: %d", off)
@@ -43,13 +50,14 @@ func (c *cache) ReadAt(p []byte, off int64) (n int, err error) {
 	c.mutex.Lock()
 
 	lp := int64(len(p))
+	size := int64(len(c.data))
 
-	if off >= c.size {
-		return 0, nil
+	if off >= size {
+		return 0, io.EOF
 	}
 
-	if off+lp > c.size {
-		n = int(c.size - off)
+	if off+lp > size {
+		n = int(size - off)
 		copy(p, c.data[off:])
 		return n, nil
 	}
@@ -57,6 +65,10 @@ func (c *cache) ReadAt(p []byte, off int64) (n int, err error) {
 	copy(p, c.data[off:off+lp])
 
 	n = int(lp)
+	if n < len(p) {
+		return n, io.EOF
+	}
+
 	return n, nil
 }
 

@@ -1,53 +1,49 @@
 package conf
 
 import (
-	"fmt"
-	"os"
-
-	"github.com/mitchellh/mapstructure"
-	"github.com/spf13/viper"
+	"github.com/koding/multiconfig"
 )
 
 type Host struct {
-	Address  string
-	Username string
+	Name     string `required:"true"`
+	Address  string `required:"true"`
+	Username string `required:"true"`
 	Password string
 	Key      string
 }
 
-func (h *Host) String() string {
-	return fmt.Sprintf("%s:%d", h.Address, 22)
-}
-
-type LoggerConfiguration struct {
-	Name     string `mapstructure:"name"`
-	Host     Host   `mapstructure:"host"`
-	JumpHost Host   `mapstructure:"jumpHost"`
+// SSHDatasourceDef represents the definition of the ssh datasource
+type SSHDatasourceDef struct {
+	Host     Host
+	JumpHost Host
 	File     string
 }
 
+// Alias represents a shortcut to a command. It has at least three values: a host, a file and a command.
+type Alias struct {
+	Datasource interface{} `required:"true"`
+	Command    string      `required:"true"`
+	Flags      string      `required:"true"`
+}
+
 type Configuration struct {
-	LoggerConfigurations []LoggerConfiguration `mapstructure:"services"`
-	DefaultChunkSize     uint32
+	Hosts       map[string]Host
+	Aliases     map[string]Alias
+	Datasources map[string]interface{}
 }
 
 var (
 	configurationFile string
-	settings          Configuration
+	conf              Configuration
 )
 
-func ReadConfigurationFile(file string) Configuration {
-	viper.SetConfigFile(file)
-	if err := viper.ReadInConfig(); err == nil {
-		fmt.Println("Using config file:", viper.ConfigFileUsed())
-	} else {
-		os.Stderr.WriteString(fmt.Sprintf("Configuration error: %s", err))
-	}
+func ReadConfiguration(file string) (Configuration, error) {
+	l := &multiconfig.TOMLLoader{Path: file}
 
-	err := mapstructure.Decode(viper.AllSettings(), &settings)
+	c := Configuration{}
+	err := l.Load(&c)
 	if err != nil {
-		panic(err)
+		return Configuration{}, err
 	}
-
-	return settings
+	return c, nil
 }
