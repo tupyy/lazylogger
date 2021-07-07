@@ -7,7 +7,6 @@ import (
 	"io"
 	"io/ioutil"
 	"net"
-	"os"
 	"time"
 
 	"github.com/tupyy/lazylogger/internal/conf"
@@ -30,8 +29,44 @@ type Client struct {
 	client *ssh.Client
 }
 
-// DialWithPasswd starts a client connection to the given SSH server with passwd authmethod.
-func DialWithPasswd(addr, user, passwd string) (*Client, error) {
+// Dial a new connection using ConfigurationEntry.
+// If jump host is defined, then it will dial a connection using jump host and create a tunnel.
+func DialWithEntry(conf conf.ConfigurationEntry) (*Client, error) {
+	host := conf.Host
+	if len(conf.JumpHost.Address) > 0 {
+		return dialWithJumpHost(host, conf.JumpHost)
+	} else {
+		if len(host.Key) > 0 {
+			return dialWithKey(host.String(), host.Username, host.Key)
+		} else {
+			return dialWithPasswd(host.String(), host.Username, host.Password)
+		}
+	}
+}
+
+func (c *Client) Close() error {
+	return c.client.Close()
+}
+
+// Cmd create a command on client
+func (c *Client) Cmd(cmd string) *remoteScript {
+	return &remoteScript{
+		_type:  cmdLine,
+		client: c.client,
+		script: bytes.NewBufferString(cmd + "\n"),
+	}
+}
+
+func (c *Client) NewSession() (*ssh.Session, error) {
+	return c.client.NewSession()
+}
+
+func (c *Client) IsConnected() bool {
+	return c.IsConnected()
+}
+
+// dial0WithPasswd starts a client connection to the given SSH server with passwd authmethod.
+func dialWithPasswd(addr, user, passwd string) (*Client, error) {
 	config := &ssh.ClientConfig{
 		User: user,
 		Auth: []ssh.AuthMethod{
@@ -41,11 +76,11 @@ func DialWithPasswd(addr, user, passwd string) (*Client, error) {
 		Timeout:         5 * time.Second,
 	}
 
-	return Dial("tcp", addr, config)
+	return dial0("tcp", addr, config)
 }
 
-// DialWithKey starts a client connection to the given SSH server with key authmethod.
-func DialWithKey(addr, user, keyfile string) (*Client, error) {
+// dial0WithKey starts a client connection to the given SSH server with key authmethod.
+func dialWithKey(addr, user, keyfile string) (*Client, error) {
 	key, err := ioutil.ReadFile(keyfile)
 	if err != nil {
 		return nil, err
@@ -65,11 +100,11 @@ func DialWithKey(addr, user, keyfile string) (*Client, error) {
 		Timeout:         5 * time.Second,
 	}
 
-	return Dial("tcp", addr, config)
+	return dial0("tcp", addr, config)
 }
 
-// DialWithKeyWithPassphrase same as DialWithKey but with a passphrase to decrypt the private key
-func DialWithKeyWithPassphrase(addr, user, keyfile string, passphrase string) (*Client, error) {
+// dial0WithKeyWithPassphrase same as dial0WithKey but with a passphrase to decrypt the private key
+func dialWithKeyWithPassphrase(addr, user, keyfile string, passphrase string) (*Client, error) {
 	key, err := ioutil.ReadFile(keyfile)
 	if err != nil {
 		return nil, err
@@ -89,10 +124,10 @@ func DialWithKeyWithPassphrase(addr, user, keyfile string, passphrase string) (*
 		Timeout:         5 * time.Second,
 	}
 
-	return Dial("tcp", addr, config)
+	return dial0("tcp", addr, config)
 }
 
-func DialWithJumpHost(jumpHost, host conf.Host) (*Client, error) {
+func dialWithJumpHost(jumpHost, host conf.Host) (*Client, error) {
 
 	var auth ssh.AuthMethod
 	var err error
@@ -158,9 +193,9 @@ func privateKeyFile(file string) (ssh.AuthMethod, error) {
 	return ssh.PublicKeys(key), nil
 }
 
-// Dial starts a client connection to the given SSH server.
-// This is wrap the ssh.Dial
-func Dial(network, addr string, config *ssh.ClientConfig) (*Client, error) {
+// dial0 starts a client connection to the given SSH server.
+// This is wrap the ssh.dial0
+func dial0(network, addr string, config *ssh.ClientConfig) (*Client, error) {
 	client, err := ssh.Dial(network, addr, config)
 	if err != nil {
 		return nil, err
@@ -168,41 +203,6 @@ func Dial(network, addr string, config *ssh.ClientConfig) (*Client, error) {
 	return &Client{
 		client: client,
 	}, nil
-}
-
-func (c *Client) Close() error {
-	return c.client.Close()
-}
-
-// Cmd create a command on client
-func (c *Client) Cmd(cmd string) *remoteScript {
-	return &remoteScript{
-		_type:  cmdLine,
-		client: c.client,
-		script: bytes.NewBufferString(cmd + "\n"),
-	}
-}
-
-// Script
-func (c *Client) Script(script string) *remoteScript {
-	return &remoteScript{
-		_type:  rawScript,
-		client: c.client,
-		script: bytes.NewBufferString(script + "\n"),
-	}
-}
-
-// ScriptFile
-func (c *Client) ScriptFile(fname string) *remoteScript {
-	return &remoteScript{
-		_type:      scriptFile,
-		client:     c.client,
-		scriptFile: fname,
-	}
-}
-
-func (c *Client) NewSession() (*ssh.Session, error) {
-	return c.client.NewSession()
 }
 
 type remoteScript struct {
@@ -225,10 +225,6 @@ func (rs *remoteScript) Run() error {
 
 	if rs._type == cmdLine {
 		return rs.runCmds()
-	} else if rs._type == rawScript {
-		return rs.runScript()
-	} else if rs._type == scriptFile {
-		return rs.runScriptFile()
 	} else {
 		return errors.New("Not supported remoteScript type")
 	}
@@ -242,27 +238,6 @@ func (rs *remoteScript) Output() ([]byte, error) {
 	rs.stdout = &out
 	err := rs.Run()
 	return out.Bytes(), err
-}
-
-func (rs *remoteScript) SmartOutput() ([]byte, error) {
-	if rs.stdout != nil {
-		return nil, errors.New("Stdout already set")
-	}
-	if rs.stderr != nil {
-		return nil, errors.New("Stderr already set")
-	}
-
-	var (
-		stdout bytes.Buffer
-		stderr bytes.Buffer
-	)
-	rs.stdout = &stdout
-	rs.stderr = &stderr
-	err := rs.Run()
-	if err != nil {
-		return stderr.Bytes(), err
-	}
-	return stdout.Bytes(), err
 }
 
 func (rs *remoteScript) Cmd(cmd string) *remoteScript {
@@ -313,73 +288,13 @@ func (rs *remoteScript) runCmds() error {
 	return nil
 }
 
-func (rs *remoteScript) runScript() error {
-	session, err := rs.client.NewSession()
-	if err != nil {
-		return err
-	}
-
-	session.Stdin = rs.script
-	session.Stdout = rs.stdout
-	session.Stderr = rs.stderr
-
-	if err := session.Shell(); err != nil {
-		return err
-	}
-	if err := session.Wait(); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (rs *remoteScript) runScriptFile() error {
-	var buffer bytes.Buffer
-	file, err := os.Open(rs.scriptFile)
-	if err != nil {
-		return err
-	}
-	_, err = io.Copy(&buffer, file)
-	if err != nil {
-		return err
-	}
-
-	rs.script = &buffer
-	return rs.runScript()
-}
-
 type remoteShell struct {
-	client         *ssh.Client
-	requestPty     bool
-	terminalConfig *TerminalConfig
+	client     *ssh.Client
+	requestPty bool
 
 	stdin  io.Reader
 	stdout io.Writer
 	stderr io.Writer
-}
-
-type TerminalConfig struct {
-	Term   string
-	Height int
-	Weight int
-	Modes  ssh.TerminalModes
-}
-
-// Terminal create a interactive shell on client.
-func (c *Client) Terminal(config *TerminalConfig) *remoteShell {
-	return &remoteShell{
-		client:         c.client,
-		terminalConfig: config,
-		requestPty:     true,
-	}
-}
-
-// Shell create a noninteractive shell on client.
-func (c *Client) Shell() *remoteShell {
-	return &remoteShell{
-		client:     c.client,
-		requestPty: false,
-	}
 }
 
 func (rs *remoteShell) SetStdio(stdin io.Reader, stdout, stderr io.Writer) *remoteShell {
@@ -387,53 +302,4 @@ func (rs *remoteShell) SetStdio(stdin io.Reader, stdout, stderr io.Writer) *remo
 	rs.stdout = stdout
 	rs.stderr = stderr
 	return rs
-}
-
-// Start start a remote shell on client
-func (rs *remoteShell) Start() error {
-	session, err := rs.client.NewSession()
-	if err != nil {
-		return err
-	}
-	defer session.Close()
-
-	if rs.stdin == nil {
-		session.Stdin = os.Stdin
-	} else {
-		session.Stdin = rs.stdin
-	}
-	if rs.stdout == nil {
-		session.Stdout = os.Stdout
-	} else {
-		session.Stdout = rs.stdout
-	}
-	if rs.stderr == nil {
-		session.Stderr = os.Stderr
-	} else {
-		session.Stderr = rs.stderr
-	}
-
-	if rs.requestPty {
-		tc := rs.terminalConfig
-		if tc == nil {
-			tc = &TerminalConfig{
-				Term:   "xterm",
-				Height: 40,
-				Weight: 80,
-			}
-		}
-		if err := session.RequestPty(tc.Term, tc.Height, tc.Weight, tc.Modes); err != nil {
-			return err
-		}
-	}
-
-	if err := session.Shell(); err != nil {
-		return err
-	}
-
-	if err := session.Wait(); err != nil {
-		return err
-	}
-
-	return nil
 }
